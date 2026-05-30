@@ -49,6 +49,8 @@ fun GameScreen(
     val state by viewModel.gameState.collectAsState()
     val carConfig by viewModel.carConfigState.collectAsState()
 
+    var is3DView by remember { mutableStateOf(true) }
+
     // Vibrant Palette Theme Colors
     val slateBG = Color(0xFF0F172A)
     val slateCard = Color(0xFF1E293B)
@@ -150,376 +152,973 @@ fun GameScreen(
                 .fillMaxSize()
                 .testTag("game_canvas_viewport")
         ) {
-            val viewW = size.width
-            val viewH = size.height
-            val cx = viewW / 2
-            val cy = viewH / 2
+            if (is3DView) {
+                val viewW = size.width
+                val viewH = size.height
+                val cx = viewW / 2
+                val cy = viewH / 2
 
-            val px = state.playerX.toFloat()
-            val py = state.playerY.toFloat()
+                val px = state.playerX
+                val py = state.playerY
+                val pAngle = state.playerAngle // in radians
+                val isWinter = carConfig.targetWeather == "SNOW"
 
-            // Translate camera viewport relative to player 
-            drawContext.canvas.save()
-            drawContext.transform.translate(cx - px, cy - py)
+                // 3D camera settings
+                val D_behind = 150.0f
+                val H_above = 75.0f
+                val F = viewW * 1.0f // Focal Length
+                val horizonY = cy - viewH * 0.16f // 3D Horizon position
 
-            // A. Draw green lawn grass field base based on winter or overcast climate
-            val isWinter = carConfig.targetWeather == "SNOW"
-            if (isWinter) {
-                // Slushy dirty siberian winter ground
-                drawRect(
-                    color = Color(0xFFD8DBE2),
-                    topLeft = Offset(0f, 0f),
-                    size = Size(viewModel.mapSize.toFloat(), viewModel.mapSize.toFloat())
-                )
-                // Spawn dirty melting snow spots
-                for (spot in 250..3750 step 500) {
-                    drawCircle(
-                        color = Color(0xFF8B8880),
-                        radius = 25f,
-                        center = Offset(spot.toFloat(), (spot + 120) % 3600f)
-                    )
+                // Projection Helper
+                fun projectGround(wx: Double, wy: Double, wz: Double): Offset? {
+                    val dx = wx - (px - kotlin.math.cos(pAngle) * D_behind)
+                    val dy = wy - (py - kotlin.math.sin(pAngle) * D_behind)
+                    val dz = wz - H_above
+
+                    val rZ = dx * kotlin.math.cos(pAngle) + dy * kotlin.math.sin(pAngle)
+                    val rX = -dx * kotlin.math.sin(pAngle) + dy * kotlin.math.cos(pAngle)
+                    val rY = dz
+
+                    if (rZ < 8.0) return null // behind camera - skip
+
+                    val sx = cx + (rX.toFloat() * F) / rZ.toFloat()
+                    val sy = cy - (rY.toFloat() * F) / rZ.toFloat() + (horizonY - cy)
+                    return Offset(sx, sy)
                 }
-            } else {
-                // Standard gloomy autumn dark grass
-                drawRect(
-                    color = Color(0xFF142416),
-                    topLeft = Offset(0f, 0f),
-                    size = Size(viewModel.mapSize.toFloat(), viewModel.mapSize.toFloat())
-                )
-            }
 
-            // B. Draw tarmac roads lines
-            val rWidth = 190f
-            val maxBound = viewModel.mapSize.toFloat()
-
-            for (i in 0..5) {
-                val offset = i * 800f + 400f
-                val roadColor = if (isWinter) Color(0xFF334155) else Color(0xFF1B1D22)
-
-                drawRect(
-                    color = roadColor,
-                    topLeft = Offset(offset - rWidth / 2f, 0f),
-                    size = Size(rWidth, maxBound)
-                )
-
-                drawRect(
-                    color = roadColor,
-                    topLeft = Offset(0f, offset - rWidth / 2f),
-                    size = Size(maxBound, rWidth)
-                )
-
-                // Divider dots
-                var dashSeg = 0f
-                while (dashSeg < maxBound) {
-                    drawLine(
-                        color = Color(0xFFEAB308),
-                        start = Offset(offset, dashSeg),
-                        end = Offset(offset, dashSeg + 25f),
-                        strokeWidth = 3f
-                    )
-                    drawLine(
-                        color = Color(0xFFEAB308),
-                        start = Offset(dashSeg, offset),
-                        end = Offset(dashSeg + 25f, offset),
-                        strokeWidth = 3f
-                    )
-                    dashSeg += 60f
+                // 1. Draw Gorgeous 3D Sky Plane (vertical gradient representing weather)
+                val skyColors = when (carConfig.targetWeather) {
+                    "RAIN" -> listOf(Color(0xFF0F172A), Color(0xFF334155))
+                    "SNOW" -> listOf(Color(0xFF1E293B), Color(0xFF475569))
+                    else -> listOf(Color(0xFF020617), Color(0xFF0F172A)) // "OVERCAST" default dark tech
                 }
-            }
+                drawRect(
+                    brush = Brush.verticalGradient(skyColors),
+                    topLeft = Offset(0f, 0f),
+                    size = Size(viewW, horizonY)
+                )
 
-            // C. Draw drift lines
-            state.driftTrails.forEach { drift ->
+                // Draw atmospheric moon/overcast glowing sun
                 drawCircle(
-                    color = Color.Black.copy(alpha = drift.alpha),
-                    radius = 4.5f,
-                    center = Offset(drift.x, drift.y)
+                    color = when (carConfig.targetWeather) {
+                        "RAIN" -> Color(0x1138BDF8)
+                        "SNOW" -> Color(0x1FCCD1D9)
+                        else -> Color(0x1A0284C7) // cyan blue neon sun
+                    },
+                    radius = 90f,
+                    center = Offset(viewW * 0.75f, horizonY * 0.4f)
                 )
-            }
 
-            // D. Draw concrete Khrushchev panel buildings
-            mapObstacles.forEach { obs ->
-                val pad = 100
-                if (obs.rect.right >= px - cx - pad && obs.rect.left <= px + cx + pad &&
-                    obs.rect.bottom >= py - cy - pad && obs.rect.top <= py + cy + pad
-                ) {
-                    when (obs.type) {
-                        ObstacleType.BUILDING -> {
-                            // High rise panel structure
-                            drawRoundRect(
-                                color = Color(0xFF475569),
-                                topLeft = Offset(obs.rect.left, obs.rect.top),
-                                size = Size(obs.rect.width, obs.rect.height),
-                                cornerRadius = CornerRadius(10f, 10f)
-                            )
-                            // Rows of yellow windows
-                            val winW = obs.rect.width
-                            val winH = obs.rect.height
-                            var curX = obs.rect.left + 15f
-                            while (curX < obs.rect.right - 15f) {
-                                var curY = obs.rect.top + 15f
-                                while (curY < obs.rect.bottom - 15f) {
-                                    val isLit = (curX.toInt() + curY.toInt()) % 4 == 0
-                                    drawRect(
-                                        color = if (isLit) Color(0xFFFEF08A) else Color(0xFF334155),
-                                        topLeft = Offset(curX, curY),
-                                        size = Size(10f, 8f)
-                                    )
-                                    curY += 24f
-                                }
-                                curX += 28f
+                // 2. Draw Ground Plane
+                val groundColor = if (isWinter) Color(0xFFE2E8F0) else Color(0xFF131E12)
+                drawRect(
+                    color = groundColor,
+                    topLeft = Offset(0f, horizonY),
+                    size = Size(viewW, viewH - horizonY)
+                )
+
+                // Draw perspective dirt patch stripes if on ground
+                if (!isWinter) {
+                    for (i in 0..12) {
+                        val stripeY = horizonY + (viewH - horizonY) * (i / 12f)
+                        val rZ = (85f * F) / (stripeY - horizonY) // depth estimation
+                        if (rZ > 10.0f) {
+                            val pattern = (System.currentTimeMillis() / 200L + i) % 3
+                            if (pattern == 0L) {
+                                drawLine(
+                                    color = Color(0x220B1C0B),
+                                    start = Offset(0f, stripeY),
+                                    end = Offset(viewW, stripeY),
+                                    strokeWidth = (2.0f * F) / rZ
+                                )
                             }
-
-                            drawRoundRect(
-                                color = Color(0xFF1E293B),
-                                topLeft = Offset(obs.rect.left, obs.rect.top),
-                                size = Size(obs.rect.width, obs.rect.height),
-                                cornerRadius = CornerRadius(10f, 10f),
-                                style = Stroke(width = 5f)
-                            )
                         }
-                        ObstacleType.WATER -> {
-                            drawRoundRect(
-                                color = if (isWinter) Color(0xFF0369A1) else Color(0xFF0C4A6E),
-                                topLeft = Offset(obs.rect.left, obs.rect.top),
-                                size = Size(obs.rect.width, obs.rect.height),
-                                cornerRadius = CornerRadius(16f, 16f)
-                            )
-                            drawRoundRect(
-                                color = Color(0xFF38BDF8),
-                                topLeft = Offset(obs.rect.left, obs.rect.top),
-                                size = Size(obs.rect.width, obs.rect.height),
-                                cornerRadius = CornerRadius(16f, 16f),
-                                style = Stroke(width = 4f)
-                            )
-                        }
-                        else -> {}
+                    }
+                } else {
+                    // Draw frosty lines for winter road sliding feeling
+                    for (i in 0..8) {
+                        val stripeY = horizonY + (viewH - horizonY) * (i / 8f)
+                        drawLine(
+                            color = Color(0xFFCBD5E1),
+                            start = Offset(0f, stripeY),
+                            end = Offset(viewW, stripeY),
+                            strokeWidth = 2f
+                        )
                     }
                 }
-            }
 
-            // E. Render pickups (Coins and tools)
-            state.items.forEach { item ->
-                if (!item.isCollected) {
-                    if (item.x >= px - cx - 50 && item.x <= px + cx + 50 &&
-                        item.y >= py - cy - 50 && item.y <= py + cy + 50
-                    ) {
-                        val ix = item.x.toFloat()
-                        val iy = item.y.toFloat()
+                // 3. Draw Roads (Avenues) in 3D Perspective!
+                val roadWidthVal = 190.0
+                // Find and project road segments near player
+                for (rdIdx in 0..4) {
+                    val roadCenterVal = rdIdx * 800.0 + 400.0
+                    val roadColor = if (isWinter) Color(0xFF334155) else Color(0xFF1E293B)
 
-                        when (item.type) {
-                            ItemType.COIN -> {
-                                drawCircle(
-                                    color = Color(0xFF22C55E),
-                                    radius = 12f,
-                                    center = Offset(ix, iy)
-                                )
-                                drawCircle(
-                                    color = Color.White,
-                                    radius = 9f,
-                                    center = Offset(ix, iy),
-                                    style = Stroke(width = 2.4f)
-                                )
+                    // Draw North-South vertical road segment
+                    // We span from y = py - 1200 to y = py + 1600
+                    val startY = (py - 1200.0).coerceAtLeast(0.0)
+                    val endY = (py + 1600.0).coerceAtMost(viewModel.mapSize)
+                    var segY = startY
+                    while (segY < endY) {
+                        val nextSegY = segY + 120.0
+                        val p1 = projectGround(roadCenterVal - roadWidthVal / 2.0, segY, 0.0)
+                        val p2 = projectGround(roadCenterVal + roadWidthVal / 2.0, segY, 0.0)
+                        val p3 = projectGround(roadCenterVal + roadWidthVal / 2.0, nextSegY, 0.0)
+                        val p4 = projectGround(roadCenterVal - roadWidthVal / 2.0, nextSegY, 0.0)
+
+                        if (p1 != null && p2 != null && p3 != null && p4 != null) {
+                            val roadPath = Path().apply {
+                                moveTo(p1.x, p1.y)
+                                lineTo(p2.x, p2.y)
+                                lineTo(p3.x, p3.y)
+                                lineTo(p4.x, p4.y)
+                                close()
                             }
-                            ItemType.REPAIR -> {
-                                drawRect(
-                                    color = Color(0xFFEF4444),
-                                    topLeft = Offset(ix - 10f, iy - 10f),
-                                    size = Size(20f, 20f)
-                                )
-                                drawLine(
-                                    color = Color.White,
-                                    start = Offset(ix - 6f, iy),
-                                    end = Offset(ix + 6f, iy),
-                                    strokeWidth = 3f
-                                )
-                                drawLine(
-                                    color = Color.White,
-                                    start = Offset(ix, iy - 6f),
-                                    end = Offset(ix, iy + 6f),
-                                    strokeWidth = 3f
-                                )
+                            drawPath(roadPath, roadColor)
+
+                            // Center dashed lane markings
+                            val midY1 = segY + 20.0
+                            val midY2 = segY + 60.0
+                            val mp1 = projectGround(roadCenterVal, midY1, 1.0)
+                            val mp2 = projectGround(roadCenterVal, midY2, 1.0)
+                            if (mp1 != null && mp2 != null) {
+                                val distFromCam = (roadCenterVal - px) * kotlin.math.cos(pAngle) + (midY1 - py) * kotlin.math.sin(pAngle) + D_behind
+                                if (distFromCam > 5.0) {
+                                    val wMark = (3.5f * F) / distFromCam.toFloat()
+                                    drawLine(
+                                        color = Color(0xFFFBBF24),
+                                        start = mp1,
+                                        end = mp2,
+                                        strokeWidth = wMark.coerceIn(1.5f, 15f)
+                                    )
+                                }
                             }
-                            ItemType.NITRO -> {
-                                val path = Path().apply {
-                                    moveTo(ix, iy - 14f)
-                                    lineTo(ix - 7f, iy + 2f)
-                                    lineTo(ix + 2f, iy + 2f)
-                                    lineTo(ix - 2f, iy + 14f)
-                                    lineTo(ix + 9f, iy - 2f)
-                                    lineTo(ix + 2f, iy - 2f)
+                        }
+                        segY += 120.0
+                    }
+
+                    // Draw East-West Horizontal road segment
+                    val startX = (px - 1200.0).coerceAtLeast(0.0)
+                    val endX = (px + 1600.0).coerceAtMost(viewModel.mapSize)
+                    var segX = startX
+                    while (segX < endX) {
+                        val nextSegX = segX + 120.0
+                        val p1 = projectGround(segX, roadCenterVal - roadWidthVal / 2.0, 0.0)
+                        val p2 = projectGround(nextSegX, roadCenterVal - roadWidthVal / 2.0, 0.0)
+                        val p3 = projectGround(nextSegX, roadCenterVal + roadWidthVal / 2.0, 0.0)
+                        val p4 = projectGround(segX, roadCenterVal + roadWidthVal / 2.0, 0.0)
+
+                        if (p1 != null && p2 != null && p3 != null && p4 != null) {
+                            val roadPath = Path().apply {
+                                moveTo(p1.x, p1.y)
+                                lineTo(p2.x, p2.y)
+                                lineTo(p3.x, p3.y)
+                                lineTo(p4.x, p4.y)
+                                close()
+                            }
+                            drawPath(roadPath, roadColor)
+
+                            // Dash markings
+                            val midX1 = segX + 20.0
+                            val midX2 = segX + 60.0
+                            val mp1 = projectGround(midX1, roadCenterVal, 1.0)
+                            val mp2 = projectGround(midX2, roadCenterVal, 1.0)
+                            if (mp1 != null && mp2 != null) {
+                                val distFromCam = (midX1 - px) * kotlin.math.cos(pAngle) + (roadCenterVal - py) * kotlin.math.sin(pAngle) + D_behind
+                                if (distFromCam > 5.0) {
+                                    val wMark = (3.5f * F) / distFromCam.toFloat()
+                                    drawLine(
+                                        color = Color(0xFFFBBF24),
+                                        start = mp1,
+                                        end = mp2,
+                                        strokeWidth = wMark.coerceIn(1.5f, 15f)
+                                    )
+                                }
+                            }
+                        }
+                        segX += 120.0
+                    }
+                }
+
+                // 4. Draw Drift Skidmarks in 3D perspective
+                state.driftTrails.forEach { drift ->
+                    val proj = projectGround(drift.x.toDouble(), drift.y.toDouble(), 0.0)
+                    if (proj != null) {
+                        val depthZ = (drift.x - px) * kotlin.math.cos(pAngle) + (drift.y - py) * kotlin.math.sin(pAngle) + D_behind
+                        if (depthZ > 8.0) {
+                            val rad = (5.0f * F) / depthZ.toFloat()
+                            drawCircle(
+                                color = Color.Black.copy(alpha = drift.alpha * 0.7f),
+                                radius = rad.coerceIn(0.5f, 12f),
+                                center = proj
+                            )
+                        }
+                    }
+                }
+
+                // 5. Draw 3D Concrete Buildings, Garages and lakes
+                val renderedObstacles = mapObstacles.mapNotNull { obs ->
+                    val obsCX = (obs.rect.left + obs.rect.right) / 2.0
+                    val obsCY = (obs.rect.top + obs.rect.bottom) / 2.0
+                    val distZ = (obsCX - px) * kotlin.math.cos(pAngle) + (obsCY - py) * kotlin.math.sin(pAngle) + D_behind
+                    
+                    if (distZ > 10.0 && distZ < 1900.0) {
+                        Pair(obs, distZ)
+                    } else {
+                        null
+                    }
+                }.sortedByDescending { it.second } // Painter's order (furthest first)
+
+                renderedObstacles.forEach { (obs, depthZ) ->
+                    val heightVal = when (obs.name) {
+                        "9-Этажка Панельная" -> 360.0
+                        "Панелька Хрущевка" -> 210.0
+                        "Тюнинг-Про Автосервис" -> 110.0
+                        "Гаражный Кооператив" -> 110.0
+                        else -> 120.0
+                    }
+
+                    if (obs.type == ObstacleType.WATER) {
+                        // Flat icy blue lake
+                        val p1 = projectGround(obs.rect.left.toDouble(), obs.rect.top.toDouble(), 1.0)
+                        val p2 = projectGround(obs.rect.right.toDouble(), obs.rect.top.toDouble(), 1.0)
+                        val p3 = projectGround(obs.rect.right.toDouble(), obs.rect.bottom.toDouble(), 1.0)
+                        val p4 = projectGround(obs.rect.left.toDouble(), obs.rect.bottom.toDouble(), 1.0)
+
+                        if (p1 != null && p2 != null && p3 != null && p4 != null) {
+                            val lakePath = Path().apply {
+                                moveTo(p1.x, p1.y)
+                                lineTo(p2.x, p2.y)
+                                lineTo(p3.x, p3.y)
+                                lineTo(p4.x, p4.y)
+                                close()
+                            }
+                            drawPath(lakePath, if (isWinter) Color(0xFF0284C7) else Color(0xFF0C4A6E))
+                            
+                            drawLine(
+                                color = Color(0xFF38BDF8),
+                                start = p1,
+                                end = p3,
+                                strokeWidth = 1.5f
+                            )
+                        }
+                    } else {
+                        // Render 3D solid box building!
+                        val l = obs.rect.left.toDouble()
+                        val r = obs.rect.right.toDouble()
+                        val t = obs.rect.top.toDouble()
+                        val b = obs.rect.bottom.toDouble()
+
+                        // 8 vertices
+                        val b1 = projectGround(l, t, 0.0)
+                        val b2 = projectGround(r, t, 0.0)
+                        val b3 = projectGround(r, b, 0.0)
+                        val b4 = projectGround(l, b, 0.0)
+
+                        val t1 = projectGround(l, t, heightVal)
+                        val t2 = projectGround(r, t, heightVal)
+                        val t3 = projectGround(r, b, heightVal)
+                        val t4 = projectGround(l, b, heightVal)
+
+                        // Calculate face depths
+                        val wallNorthZ = ((l+r)/2 - px) * kotlin.math.cos(pAngle) + (t - py) * kotlin.math.sin(pAngle) + D_behind
+                        val wallEastZ = (r - px) * kotlin.math.cos(pAngle) + ((t+b)/2 - py) * kotlin.math.sin(pAngle) + D_behind
+                        val wallSouthZ = ((l+r)/2 - px) * kotlin.math.cos(pAngle) + (b - py) * kotlin.math.sin(pAngle) + D_behind
+                        val wallWestZ = (l - px) * kotlin.math.cos(pAngle) + ((t+b)/2 - py) * kotlin.math.sin(pAngle) + D_behind
+
+                        val buildingColorCode = if (obs.name.contains("Тюнинг-Про")) Color(0xFF0891B2) else Color(0xFF475569) // Cyan workshop or Slate apartment
+
+                        // Define faces
+                        val faces = mutableListOf<Triple<String, Double, List<Offset?>>>()
+                        // Roof face
+                        val roofCenterZ = ((l+r)/2 - px) * kotlin.math.cos(pAngle) + ((t+b)/2 - py) * kotlin.math.sin(pAngle) + D_behind
+                        faces.add(Triple("ROOF", roofCenterZ, listOf(t1, t2, t3, t4)))
+                        // Sides
+                        faces.add(Triple("NORTH", wallNorthZ, listOf(b1, b2, t2, t1)))
+                        faces.add(Triple("EAST", wallEastZ, listOf(b2, b3, t3, t2)))
+                        faces.add(Triple("SOUTH", wallSouthZ, listOf(b3, b4, t4, t3)))
+                        faces.add(Triple("WEST", wallWestZ, listOf(b4, b1, t1, t4)))
+
+                        // Sort faces furthest first from camera view
+                        faces.sortByDescending { it.second }
+
+                        faces.forEach { (faceName, _, pts) ->
+                            if (pts.all { it != null }) {
+                                val s1 = pts[0]!!
+                                val s2 = pts[1]!!
+                                val s3 = pts[2]!!
+                                val s4 = pts[3]!!
+
+                                val polyPath = Path().apply {
+                                    moveTo(s1.x, s1.y)
+                                    lineTo(s2.x, s2.y)
+                                    lineTo(s3.x, s3.y)
+                                    lineTo(s4.x, s4.y)
                                     close()
                                 }
-                                drawPath(path = path, color = Color(0xFF00D2FF))
+
+                                val faceColor = when (faceName) {
+                                    "ROOF" -> Color(0xFF1E293B)
+                                    "NORTH", "SOUTH" -> buildingColorCode.copy(alpha = 0.95f)
+                                    else -> buildingColorCode.copy(alpha = 0.82f)
+                                }
+                                drawPath(polyPath, faceColor)
+
+                                // Draw solid borders
+                                drawLine(color = Color(0xFF0F172A), start = s1, end = s2, strokeWidth = 2f)
+                                drawLine(color = Color(0xFF0F172A), start = s2, end = s3, strokeWidth = 2f)
+                                drawLine(color = Color(0xFF0F172A), start = s3, end = s4, strokeWidth = 2f)
+                                drawLine(color = Color(0xFF0F172A), start = s4, end = s1, strokeWidth = 2f)
+
+                                // Rows of windows
+                                if (faceName != "ROOF" && !obs.name.contains("Тюнинг-Про") && !obs.name.contains("Кооператив")) {
+                                    val columns = 4
+                                    val floors = if (obs.name.contains("9-Этажка")) 7 else 4
+                                    
+                                    for (col in 0 until columns) {
+                                        for (flr in 0 until floors) {
+                                            val cxFrac1 = (col + 0.3f) / columns.toFloat()
+                                            val cxFrac2 = (col + 0.7f) / columns.toFloat()
+                                            val cyFrac1 = (flr + 0.3f) / floors.toFloat()
+                                            val cyFrac2 = (flr + 0.7f) / floors.toFloat()
+
+                                            val isLit = (col + flr + obs.rect.left.toInt() / 40) % 3 != 0
+                                            val winColor = if (isLit) Color(0xFFFEF08A).copy(alpha = 0.8f) else Color(0x7F1E293B)
+
+                                            val wx1 = s1.x + (s2.x - s1.x) * cxFrac1 + (s4.x - s1.x) * cyFrac1
+                                            val wy1 = s1.y + (s2.y - s1.y) * cxFrac1 + (s4.y - s1.y) * cyFrac1
+                                            val wx2 = s1.x + (s2.x - s1.x) * cxFrac2 + (s4.x - s1.x) * cyFrac2
+                                            val wy2 = s1.y + (s2.y - s1.y) * cxFrac2 + (s4.y - s1.y) * cyFrac2
+
+                                            drawCircle(
+                                                color = winColor,
+                                                radius = maxOf(kotlin.math.abs(wx2 - wx1) * 0.3f, 1f),
+                                                center = Offset((wx1 + wx2)/2f, (wy1 + wy2)/2f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // F. Bullet lines tracers
-            state.bullets.forEach { bullet ->
-                drawLine(
-                    color = Color(0xFFF97316),
-                    start = Offset(bullet.x.toFloat(), bullet.y.toFloat()),
-                    end = Offset((bullet.x - bullet.vx * 0.9f).toFloat(), (bullet.y - bullet.vy * 0.9f).toFloat()),
-                    strokeWidth = 4f
-                )
-            }
+                // 6. Draw floating Pickups (items) in 3D perspective
+                state.items.forEach { item ->
+                    if (!item.isCollected) {
+                        val animateFloat = 6.0 + 3.5 * kotlin.math.sin((System.currentTimeMillis() + item.id * 180L) / 160.0)
+                        val proj = projectGround(item.x, item.y, animateFloat)
+                        if (proj != null) {
+                            val distZ = (item.x - px) * kotlin.math.cos(pAngle) + (item.y - py) * kotlin.math.sin(pAngle) + D_behind
+                            if (distZ > 10.0 && distZ < 1200.0) {
+                                val itemS3D = (16.0f * F) / distZ.toFloat()
+                                val rad3D = itemS3D.coerceIn(2f, 32f)
 
-            // G. Render Police cars
-            state.copCars.forEach { cop ->
-                val cxCar = cop.x.toFloat()
-                val cyCar = cop.y.toFloat()
-
-                rotate(
-                    degrees = Math.toDegrees(cop.angle).toFloat(),
-                    pivot = Offset(cxCar, cyCar)
-                ) {
-                    val copColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
-                    drawRoundRect(
-                        color = copColor,
-                        topLeft = Offset(cxCar - 22f, cyCar - 12f),
-                        size = Size(44f, 24f),
-                        cornerRadius = CornerRadius(4f, 4f)
-                    )
-                    // Cop white trim
-                    drawRect(
-                        color = Color.White,
-                        topLeft = Offset(cxCar - 9f, cyCar - 12f),
-                        size = Size(18f, 24f)
-                    )
-                    // Cop glass windshield
-                    drawRect(
-                        color = Color(0xFF0F172A),
-                        topLeft = Offset(cxCar + 2f, cyCar - 10f),
-                        size = Size(4f, 20f)
-                    )
-
-                    // Sirens
-                    val flashSirenRed = (System.currentTimeMillis() / 150L) % 2 == 0L
-                    drawRect(
-                        color = if (flashSirenRed) Color.Red else Color.Blue,
-                        topLeft = Offset(cxCar - 4f, cyCar - 10f),
-                        size = Size(8f, 10f)
-                    )
-                    drawRect(
-                        color = if (flashSirenRed) Color.Blue else Color.Red,
-                        topLeft = Offset(cxCar - 4f, cyCar),
-                        size = Size(8f, 10f)
-                    )
+                                when (item.type) {
+                                    ItemType.COIN -> {
+                                        drawCircle(
+                                            color = Color(0xFF22C55E),
+                                            radius = rad3D,
+                                            center = proj
+                                        )
+                                        drawCircle(
+                                            color = Color.White,
+                                            radius = rad3D * 0.7f,
+                                            center = proj,
+                                            style = Stroke(width = maxOf(rad3D * 0.15f, 1f))
+                                        )
+                                    }
+                                    ItemType.REPAIR -> {
+                                        drawRect(
+                                            color = Color(0xFFEF4444),
+                                            topLeft = Offset(proj.x - rad3D, proj.y - rad3D),
+                                            size = Size(rad3D * 2, rad3D * 2)
+                                        )
+                                        drawLine(
+                                            color = Color.White,
+                                            start = Offset(proj.x - rad3D * 0.6f, proj.y),
+                                            end = Offset(proj.x + rad3D * 0.6f, proj.y),
+                                            strokeWidth = maxOf(rad3D * 0.2f, 1.5f)
+                                        )
+                                        drawLine(
+                                            color = Color.White,
+                                            start = Offset(proj.x, proj.y - rad3D * 0.6f),
+                                            end = Offset(proj.x, proj.y + rad3D * 0.6f),
+                                            strokeWidth = maxOf(rad3D * 0.2f, 1.5f)
+                                        )
+                                    }
+                                    ItemType.NITRO -> {
+                                        drawCircle(
+                                            color = Color(0xFF00D2FF),
+                                            radius = rad3D,
+                                            center = proj
+                                        )
+                                        drawCircle(
+                                            color = Color.White,
+                                            radius = rad3D * 0.5f,
+                                            center = proj
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            }
 
-            // H. Render Player Lada Car
-            rotate(
-                degrees = Math.toDegrees(state.playerAngle).toFloat(),
-                pivot = Offset(px, py)
-            ) {
-                // Neon Underglow (green green glows)
+                // 7. Bullet Tracers in 3D space!
+                state.bullets.forEach { bullet ->
+                    val bpStart = projectGround(bullet.x, bullet.y, 4.0)
+                    val bpEnd = projectGround(bullet.x - bullet.vx * 1.3, bullet.y - bullet.vy * 1.3, 4.0)
+                    if (bpStart != null && bpEnd != null) {
+                        drawLine(
+                            color = Color(0xFFF97316),
+                            start = bpStart,
+                            end = bpEnd,
+                            strokeWidth = 3f
+                        )
+                    }
+                }
+
+                // 8. Police Cars in 3D Perspective!
+                state.copCars.forEach { cop ->
+                    val distZ = (cop.x - px) * kotlin.math.cos(pAngle) + (cop.y - py) * kotlin.math.sin(pAngle) + D_behind
+                    if (distZ > 10.0 && distZ < 1400.0) {
+                        val sizeS3D = (34.0f * F) / distZ.toFloat()
+                        val copW = sizeS3D.coerceIn(2f, 100f)
+                        val copH = (copW * 0.45f).coerceIn(1f, 45f)
+
+                        val copProj = projectGround(cop.x, cop.y, 1.0)
+                        if (copProj != null) {
+                            val isFlashingSirenRed = (System.currentTimeMillis() / 150L) % 2L == 0L
+                            val copBodyColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
+
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = Offset(copProj.x - copW * 0.45f, copProj.y - copH * 0.1f),
+                                size = Size(copW * 0.2f, copH * 0.3f)
+                            )
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = Offset(copProj.x + copW * 0.25f, copProj.y - copH * 0.1f),
+                                size = Size(copW * 0.2f, copH * 0.3f)
+                            )
+
+                            drawRoundRect(
+                                color = copBodyColor,
+                                topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
+                                size = Size(copW, copH),
+                                cornerRadius = CornerRadius(4f, 4f)
+                            )
+
+                            drawRect(
+                                color = Color.White,
+                                topLeft = Offset(copProj.x - copW * 0.18f, copProj.y - copH),
+                                size = Size(copW * 0.36f, copH)
+                            )
+
+                            drawRect(
+                                color = Color(0xFF1D4ED8),
+                                topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH * 0.65f),
+                                size = Size(copW, copH * 0.25f)
+                            )
+
+                            drawRect(
+                                color = Color(0xFF0F172A),
+                                topLeft = Offset(copProj.x - copW * 0.35f, copProj.y - copH * 0.95f),
+                                size = Size(copW * 0.7f, copH * 0.3f)
+                            )
+
+                            val sirenY = copProj.y - copH - copH * 0.15f
+                            drawRect(
+                                color = if (isFlashingSirenRed) Color.Red else Color.Blue,
+                                topLeft = Offset(copProj.x - copW * 0.12f, sirenY),
+                                size = Size(copW * 0.12f, copH * 0.22f)
+                            )
+                            drawRect(
+                                color = if (isFlashingSirenRed) Color.Blue else Color.Red,
+                                topLeft = Offset(copProj.x, sirenY),
+                                size = Size(copW * 0.12f, copH * 0.22f)
+                            )
+                        }
+                    }
+                }
+
+                // 9. Draw Player's Black Lada Samara in 3D Chase View!
+                val lZ = D_behind.toDouble() - 15.0
+                val tiltX = -viewModel.steerInput * 16.0
+                val ldaCY = -14.0
+
+                val sizeLada3D = (54.0f * F) / lZ.toFloat()
+                val ldaW = sizeLada3D.coerceIn(10f, 140f)
+                val ldaH = (ldaW * 0.46f).coerceIn(4f, 65f)
+
                 if (carConfig.neonUnderglow) {
                     drawCircle(
-                        color = Color(0xFF22C55E).copy(alpha = 0.35f),
-                        radius = 35f,
-                        center = Offset(px, py)
+                        color = Color(0xFF22C55E).copy(alpha = 0.45f),
+                        radius = ldaW * 0.8f,
+                        center = Offset(cx + tiltX.toFloat(), cy - ldaCY.toFloat() - ldaH * 0.2f)
                     )
                 }
 
-                // Headlight rays
-                val conePath = Path().apply {
-                    moveTo(px + 20f, py)
-                    lineTo(px + 230f, py - 80f)
-                    lineTo(px + 230f, py + 80f)
-                    close()
-                }
-                drawPath(
-                    path = conePath,
-                    color = Color(0xFFFFD700).copy(alpha = 0.14f)
-                )
+                val pLocX = cx + tiltX.toFloat()
+                val pLocY = cy - ldaCY.toFloat()
 
-                // Wheels detail lines
-                drawRect(Color.Black, topLeft = Offset(px - 16f, py - 18f), size = Size(10f, 5f))
-                drawRect(Color.Black, topLeft = Offset(px + 10f, py - 18f), size = Size(10f, 5f))
-                drawRect(Color.Black, topLeft = Offset(px - 16f, py + 13f), size = Size(10f, 5f))
-                drawRect(Color.Black, topLeft = Offset(px + 10f, py + 13f), size = Size(10f, 5f))
-
-                // Custom database-selected paint
-                drawRoundRect(
-                    color = Color(paintCarColor),
-                    topLeft = Offset(px - 22f, py - 14f),
-                    size = Size(44f, 28f),
-                    cornerRadius = CornerRadius(6f, 6f)
-                )
-
-                // Glass screen interior
-                val glassPath = Path().apply {
-                    moveTo(px - 8f, py - 10f)
-                    lineTo(px + 12f, py - 10f)
-                    lineTo(px + 18f, py)
-                    lineTo(px + 12f, py + 10f)
-                    lineTo(px - 8f, py + 10f)
-                    close()
-                }
-                drawPath(glassPath, Color(0xFF0F172A))
-
-                // Aerodynamic Spoiler block if active
-                if (carConfig.bigSpoiler) {
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(px - 25f, py - 16f),
-                        end = Offset(px - 25f, py + 16f),
-                        strokeWidth = 5f
-                    )
-                }
-
-                // Flame turbo thrust exhaust
                 if (state.playerSpeed > 0.1 && viewModel.nitroActive && state.nitroAmount > 0.0) {
-                    val flameLength = 30f + (System.currentTimeMillis() % 40)
+                    val flmVal = 20f + (System.currentTimeMillis() % 40L)
                     val flamePath = Path().apply {
-                        moveTo(px - 22f, py - 6f)
-                        lineTo(px - 22f - flameLength, py)
-                        lineTo(px - 22f, py + 6f)
+                        moveTo(pLocX - ldaW * 0.35f, pLocY + ldaH * 0.2f)
+                        lineTo(pLocX - ldaW * 0.35f - flmVal, pLocY + ldaH * 0.2f)
+                        lineTo(pLocX - ldaW * 0.35f, pLocY + ldaH * 0.1f)
                         close()
                     }
                     drawPath(flamePath, Color(0xFF00D2FF))
                 }
-            }
 
-            // RESTORE Camera
-            drawContext.canvas.restore()
+                drawRect(
+                    color = Color.Black,
+                    topLeft = Offset(pLocX - ldaW * 0.44f, pLocY - ldaH * 0.15f),
+                    size = Size(ldaW * 0.2f, ldaH * 0.35f)
+                )
+                drawRect(
+                    color = Color.Black,
+                    topLeft = Offset(pLocX + ldaW * 0.24f, pLocY - ldaH * 0.15f),
+                    size = Size(ldaW * 0.2f, ldaH * 0.35f)
+                )
 
-            // --- REAL-TIME GRAPHICAL WEATHER OVERLAYS ---
-            if (carConfig.targetWeather == "RAIN") {
-                // Streaming raindrops
-                val timeSec = System.currentTimeMillis() / 12f
-                for (k in 0..50) {
-                    val rx = (k * 137 + timeSec * 0.5f) % viewW
-                    val ry = (k * 223 + timeSec * 3.5f) % viewH
+                drawRoundRect(
+                    color = Color(paintCarColor),
+                    topLeft = Offset(pLocX - ldaW * 0.50f, pLocY - ldaH),
+                    size = Size(ldaW, ldaH),
+                    cornerRadius = CornerRadius(6f, 6f)
+                )
+
+                val ldaWindshield = Path().apply {
+                    moveTo(pLocX - ldaW * 0.36f, pLocY - ldaH * 0.92f)
+                    lineTo(pLocX + ldaW * 0.36f, pLocY - ldaH * 0.92f)
+                    lineTo(pLocX + ldaW * 0.43f, pLocY - ldaH * 0.58f)
+                    lineTo(pLocX - ldaW * 0.43f, pLocY - ldaH * 0.58f)
+                    close()
+                }
+                drawPath(ldaWindshield, Color(0xFF0F172A))
+
+                drawRect(
+                    color = Color(0xFFEF4444),
+                    topLeft = Offset(pLocX - ldaW * 0.47f, pLocY - ldaH * 0.45f),
+                    size = Size(ldaW * 0.18f, ldaH * 0.18f)
+                )
+                drawRect(
+                    color = Color(0xFFEF4444),
+                    topLeft = Offset(pLocX + ldaW * 0.29f, pLocY - ldaH * 0.45f),
+                    size = Size(ldaW * 0.18f, ldaH * 0.18f)
+                )
+
+                drawLine(
+                    color = Color(0xFF94A3B8),
+                    start = Offset(pLocX - ldaW * 0.35f, pLocY - ldaH * 0.15f),
+                    end = Offset(pLocX + ldaW * 0.35f, pLocY - ldaH * 0.15f),
+                    strokeWidth = 2f
+                )
+
+                if (carConfig.bigSpoiler) {
                     drawLine(
-                        color = Color(0x663B82F6),
-                        start = Offset(rx, ry),
-                        end = Offset(rx - 10f, ry + 20f),
-                        strokeWidth = 2f
+                        color = Color.White,
+                        start = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 0.92f),
+                        end = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 1.15f),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 0.92f),
+                        end = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 1.15f),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = Color(paintCarColor),
+                        start = Offset(pLocX - ldaW * 0.46f, pLocY - ldaH * 1.15f),
+                        end = Offset(pLocX + ldaW * 0.46f, pLocY - ldaH * 1.15f),
+                        strokeWidth = 5f
                     )
                 }
-            } else if (carConfig.targetWeather == "SNOW") {
-                // Swirling snowflakes
-                val timeSec = System.currentTimeMillis() / 18f
-                for (k in 0..45) {
-                    val sx = (k * 197 + timeSec * 0.9f) % viewW
-                    val sy = (k * 311 + timeSec * 1.5f) % viewH
-                    drawCircle(
-                        color = Color(0xCCE2E8F0),
-                        radius = 4f + (k % 3),
-                        center = Offset(sx, sy)
-                    )
+
+                // 10. Draw 3D Falling Weather Overlays (RAIN/SNOW)
+                if (carConfig.targetWeather == "RAIN") {
+                    val frameTick = System.currentTimeMillis() / 15f
+                    for (k in 0..40) {
+                        val rx = (k * 187 + frameTick * 0.6f) % viewW
+                        val ry = (k * 229 + frameTick * 4.2f) % (viewH - horizonY) + horizonY
+                        drawLine(
+                            color = Color(0x663B82F6),
+                            start = Offset(rx, ry),
+                            end = Offset(rx - 8f, ry + 16f),
+                            strokeWidth = 1.5f
+                        )
+                    }
+                } else if (carConfig.targetWeather == "SNOW") {
+                    val frameTick = System.currentTimeMillis() / 20f
+                    for (k in 0..35) {
+                        val sx = (k * 157 + frameTick * 1.2f) % viewW
+                        val sy = (k * 313 + frameTick * 2.2f) % (viewH - horizonY) + horizonY
+                        drawCircle(
+                            color = Color(0xECE2E8F0),
+                            radius = 3f + (k % 3),
+                            center = Offset(sx, sy)
+                        )
+                    }
                 }
             } else {
-                // OVERCAST Sun details
-                drawCircle(
-                    color = Color(0x2BFEF08A),
-                    radius = 80f,
-                    center = Offset(viewW - 100f, 100f)
-                )
+                // --- CLASSIC MODE (2D TOP DOOR PERSPECTIVE) ---
+                val viewW = size.width
+                val viewH = size.height
+                val cx = viewW / 2
+                val cy = viewH / 2
+
+                val px = state.playerX.toFloat()
+                val py = state.playerY.toFloat()
+                val isWinter = carConfig.targetWeather == "SNOW"
+
+                // Translate camera viewport relative to player 
+                drawContext.canvas.save()
+                drawContext.transform.translate(cx - px, cy - py)
+
+                // A. Draw green lawn grass field base based on winter or overcast climate
+                if (isWinter) {
+                    drawRect(
+                        color = Color(0xFFD8DBE2),
+                        topLeft = Offset(0f, 0f),
+                        size = Size(viewModel.mapSize.toFloat(), viewModel.mapSize.toFloat())
+                    )
+                    for (spot in 250..3750 step 500) {
+                        drawCircle(
+                            color = Color(0xFF8B8880),
+                            radius = 25f,
+                            center = Offset(spot.toFloat(), (spot + 120) % 3600f)
+                        )
+                    }
+                } else {
+                    drawRect(
+                        color = Color(0xFF142416),
+                        topLeft = Offset(0f, 0f),
+                        size = Size(viewModel.mapSize.toFloat(), viewModel.mapSize.toFloat())
+                    )
+                }
+
+                // B. Draw tarmac roads lines
+                val rWidth = 190f
+                val maxBound = viewModel.mapSize.toFloat()
+
+                for (i in 0..5) {
+                    val offset = i * 800f + 400f
+                    val roadColor = if (isWinter) Color(0xFF334155) else Color(0xFF1B1D22)
+
+                    drawRect(
+                        color = roadColor,
+                        topLeft = Offset(offset - rWidth / 2f, 0f),
+                        size = Size(rWidth, maxBound)
+                    )
+
+                    drawRect(
+                        color = roadColor,
+                        topLeft = Offset(0f, offset - rWidth / 2f),
+                        size = Size(maxBound, rWidth)
+                    )
+
+                    var dashSeg = 0f
+                    while (dashSeg < maxBound) {
+                        drawLine(
+                            color = Color(0xFFEAB308),
+                            start = Offset(offset, dashSeg),
+                            end = Offset(offset, dashSeg + 25f),
+                            strokeWidth = 3f
+                        )
+                        drawLine(
+                            color = Color(0xFFEAB308),
+                            start = Offset(dashSeg, offset),
+                            end = Offset(dashSeg + 25f, offset),
+                            strokeWidth = 3f
+                        )
+                        dashSeg += 60f
+                    }
+                }
+
+                // C. Draw drift lines
+                state.driftTrails.forEach { drift ->
+                    drawCircle(
+                        color = Color.Black.copy(alpha = drift.alpha),
+                        radius = 4.5f,
+                        center = Offset(drift.x, drift.y)
+                    )
+                }
+
+                // D. Draw concrete Khrushchev panel buildings
+                mapObstacles.forEach { obs ->
+                    val pad = 100
+                    if (obs.rect.right >= px - cx - pad && obs.rect.left <= px + cx + pad &&
+                        obs.rect.bottom >= py - cy - pad && obs.rect.top <= py + cy + pad
+                    ) {
+                        when (obs.type) {
+                            ObstacleType.BUILDING -> {
+                                drawRoundRect(
+                                    color = Color(0xFF475569),
+                                    topLeft = Offset(obs.rect.left, obs.rect.top),
+                                    size = Size(obs.rect.width, obs.rect.height),
+                                    cornerRadius = CornerRadius(10f, 10f)
+                                )
+                                val winW = obs.rect.width
+                                val winH = obs.rect.height
+                                var curX = obs.rect.left + 15f
+                                while (curX < obs.rect.right - 15f) {
+                                    var curY = obs.rect.top + 15f
+                                    while (curY < obs.rect.bottom - 15f) {
+                                        val isLit = (curX.toInt() + curY.toInt()) % 4 == 0
+                                        drawRect(
+                                            color = if (isLit) Color(0xFFFEF08A) else Color(0xFF334155),
+                                            topLeft = Offset(curX, curY),
+                                            size = Size(10f, 8f)
+                                        )
+                                        curY += 24f
+                                    }
+                                    curX += 28f
+                                }
+
+                                drawRoundRect(
+                                    color = Color(0xFF1E293B),
+                                    topLeft = Offset(obs.rect.left, obs.rect.top),
+                                    size = Size(obs.rect.width, obs.rect.height),
+                                    cornerRadius = CornerRadius(10f, 10f),
+                                    style = Stroke(width = 5f)
+                                )
+                            }
+                            ObstacleType.WATER -> {
+                                drawRoundRect(
+                                    color = if (isWinter) Color(0xFF0369A1) else Color(0xFF0C4A6E),
+                                    topLeft = Offset(obs.rect.left, obs.rect.top),
+                                    size = Size(obs.rect.width, obs.rect.height),
+                                    cornerRadius = CornerRadius(16f, 16f)
+                                )
+                                drawRoundRect(
+                                    color = Color(0xFF38BDF8),
+                                    topLeft = Offset(obs.rect.left, obs.rect.top),
+                                    size = Size(obs.rect.width, obs.rect.height),
+                                    cornerRadius = CornerRadius(16f, 16f),
+                                    style = Stroke(width = 4f)
+                                )
+                            }
+                            else -> {}
+                        }
+                    }
+                }
+
+                // E. Render pickups
+                state.items.forEach { item ->
+                    if (!item.isCollected) {
+                        if (item.x >= px - cx - 50 && item.x <= px + cx + 50 &&
+                            item.y >= py - cy - 50 && item.y <= py + cy + 50
+                        ) {
+                            val ix = item.x.toFloat()
+                            val iy = item.y.toFloat()
+
+                            when (item.type) {
+                                ItemType.COIN -> {
+                                    drawCircle(
+                                        color = Color(0xFF22C55E),
+                                        radius = 12f,
+                                        center = Offset(ix, iy)
+                                    )
+                                    drawCircle(
+                                        color = Color.White,
+                                        radius = 9f,
+                                        center = Offset(ix, iy),
+                                        style = Stroke(width = 2.4f)
+                                    )
+                                }
+                                ItemType.REPAIR -> {
+                                    drawRect(
+                                        color = Color(0xFFEF4444),
+                                        topLeft = Offset(ix - 10f, iy - 10f),
+                                        size = Size(20f, 20f)
+                                    )
+                                    drawLine(
+                                        color = Color.White,
+                                        start = Offset(ix - 6f, iy),
+                                        end = Offset(ix + 6f, iy),
+                                        strokeWidth = 3f
+                                    )
+                                    drawLine(
+                                        color = Color.White,
+                                        start = Offset(ix, iy - 6f),
+                                        end = Offset(ix, iy + 6f),
+                                        strokeWidth = 3f
+                                    )
+                                }
+                                ItemType.NITRO -> {
+                                    val path = Path().apply {
+                                        moveTo(ix, iy - 14f)
+                                        lineTo(ix - 7f, iy + 2f)
+                                        lineTo(ix + 2f, iy + 2f)
+                                        lineTo(ix - 2f, iy + 14f)
+                                        lineTo(ix + 9f, iy - 2f)
+                                        lineTo(ix + 2f, iy - 2f)
+                                        close()
+                                    }
+                                    drawPath(path = path, color = Color(0xFF00D2FF))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // F. Bullet lines tracers
+                state.bullets.forEach { bullet ->
+                    drawLine(
+                        color = Color(0xFFF97316),
+                        start = Offset(bullet.x.toFloat(), bullet.y.toFloat()),
+                        end = Offset((bullet.x - bullet.vx * 0.9f).toFloat(), (bullet.y - bullet.vy * 0.9f).toFloat()),
+                        strokeWidth = 4f
+                    )
+                }
+
+                // G. Render Police cars
+                state.copCars.forEach { cop ->
+                    val cxCar = cop.x.toFloat()
+                    val cyCar = cop.y.toFloat()
+
+                    rotate(
+                        degrees = Math.toDegrees(cop.angle).toFloat(),
+                        pivot = Offset(cxCar, cyCar)
+                    ) {
+                        val copColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
+                        drawRoundRect(
+                            color = copColor,
+                            topLeft = Offset(cxCar - 22f, cyCar - 12f),
+                            size = Size(44f, 24f),
+                            cornerRadius = CornerRadius(4f, 4f)
+                        )
+                        drawRect(
+                            color = Color.White,
+                            topLeft = Offset(cxCar - 9f, cyCar - 12f),
+                            size = Size(18f, 24f)
+                        )
+                        drawRect(
+                            color = Color(0xFF0F172A),
+                            topLeft = Offset(cxCar + 2f, cyCar - 10f),
+                            size = Size(4f, 20f)
+                        )
+
+                        val flashSirenRed = (System.currentTimeMillis() / 150L) % 2 == 0L
+                        drawRect(
+                            color = if (flashSirenRed) Color.Red else Color.Blue,
+                            topLeft = Offset(cxCar - 4f, cyCar - 10f),
+                            size = Size(8f, 10f)
+                        )
+                        drawRect(
+                            color = if (flashSirenRed) Color.Blue else Color.Red,
+                            topLeft = Offset(cxCar - 4f, cyCar),
+                            size = Size(8f, 10f)
+                        )
+                    }
+                }
+
+                // H. Render Player Lada Car
+                rotate(
+                    degrees = Math.toDegrees(state.playerAngle).toFloat(),
+                    pivot = Offset(px.toFloat(), py.toFloat())
+                ) {
+                    if (carConfig.neonUnderglow) {
+                        drawCircle(
+                            color = Color(0xFF22C55E).copy(alpha = 0.35f),
+                            radius = 35f,
+                            center = Offset(px.toFloat(), py.toFloat())
+                        )
+                    }
+
+                    val conePath = Path().apply {
+                        moveTo(px.toFloat() + 20f, py.toFloat())
+                        lineTo(px.toFloat() + 230f, py.toFloat() - 80f)
+                        lineTo(px.toFloat() + 230f, py.toFloat() + 80f)
+                        close()
+                    }
+                    drawPath(
+                        path = conePath,
+                        color = Color(0xFFFFD700).copy(alpha = 0.14f)
+                    )
+
+                    drawRect(Color.Black, topLeft = Offset(px.toFloat() - 16f, py.toFloat() - 18f), size = Size(10f, 5f))
+                    drawRect(Color.Black, topLeft = Offset(px.toFloat() + 10f, py.toFloat() - 18f), size = Size(10f, 5f))
+                    drawRect(Color.Black, topLeft = Offset(px.toFloat() - 16f, py.toFloat() + 13f), size = Size(10f, 5f))
+                    drawRect(Color.Black, topLeft = Offset(px.toFloat() + 10f, py.toFloat() + 13f), size = Size(10f, 5f))
+
+                    drawRoundRect(
+                        color = Color(paintCarColor),
+                        topLeft = Offset(px.toFloat() - 22f, py.toFloat() - 14f),
+                        size = Size(44f, 28f),
+                        cornerRadius = CornerRadius(6f, 6f)
+                    )
+
+                    val glassPath = Path().apply {
+                        moveTo(px.toFloat() - 8f, py.toFloat() - 10f)
+                        lineTo(px.toFloat() + 12f, py.toFloat() - 10f)
+                        lineTo(px.toFloat() + 18f, py.toFloat())
+                        lineTo(px.toFloat() + 12f, py.toFloat() + 10f)
+                        lineTo(px.toFloat() - 8f, py.toFloat() + 10f)
+                        close()
+                    }
+                    drawPath(glassPath, Color(0xFF0F172A))
+
+                    if (carConfig.bigSpoiler) {
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(px.toFloat() - 25f, py.toFloat() - 16f),
+                            end = Offset(px.toFloat() - 25f, py.toFloat() + 16f),
+                            strokeWidth = 5f
+                        )
+                    }
+
+                    if (state.playerSpeed > 0.1 && viewModel.nitroActive && state.nitroAmount > 0.0) {
+                        val flameLength = 30f + (System.currentTimeMillis() % 40)
+                        val flamePath = Path().apply {
+                            moveTo(px.toFloat() - 22f, py.toFloat() - 6f)
+                            lineTo(px.toFloat() - 22f - flameLength, py.toFloat())
+                            lineTo(px.toFloat() - 22f, py.toFloat() + 6f)
+                            close()
+                        }
+                        drawPath(flamePath, Color(0xFF00D2FF))
+                    }
+                }
+
+                // RESTORE Camera
+                drawContext.canvas.restore()
+
+                // --- REAL-TIME GRAPHICAL WEATHER OVERLAYS ---
+                if (carConfig.targetWeather == "RAIN") {
+                    val timeSec = System.currentTimeMillis() / 12f
+                    for (k in 0..50) {
+                        val rx = (k * 137 + timeSec * 0.5f) % viewW
+                        val ry = (k * 223 + timeSec * 3.5f) % viewH
+                        drawLine(
+                            color = Color(0x663B82F6),
+                            start = Offset(rx, ry),
+                            end = Offset(rx - 10f, ry + 20f),
+                            strokeWidth = 2f
+                        )
+                    }
+                } else if (carConfig.targetWeather == "SNOW") {
+                    val timeSec = System.currentTimeMillis() / 18f
+                    for (k in 0..45) {
+                        val sx = (k * 197 + timeSec * 0.9f) % viewW
+                        val sy = (k * 311 + timeSec * 1.5f) % viewH
+                        drawCircle(
+                            color = Color(0xCCE2E8F0),
+                            radius = 4f + (k % 3),
+                            center = Offset(sx, sy)
+                        )
+                    }
+                } else {
+                    drawCircle(
+                        color = Color(0x2BFEF08A),
+                        radius = 80f,
+                        center = Offset(viewW - 100f, 100f)
+                    )
+                }
             }
         }
 
@@ -535,16 +1134,37 @@ fun GameScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back to menu
-                Button(
-                    onClick = onBackToMenu,
-                    colors = ButtonDefaults.buttonColors(containerColor = slateCard),
-                    border = BorderStroke(1.dp, Color(0xFF334155)),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                    modifier = Modifier.height(38.dp)
+                // Back to menu & Camera selector row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    pText(text = "КОНЦЕДИРОВАТЬ", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    Button(
+                        onClick = onBackToMenu,
+                        colors = ButtonDefaults.buttonColors(containerColor = slateCard),
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                        modifier = Modifier.height(38.dp)
+                    ) {
+                        pText(text = "КОНЦЕДИРОВАТЬ", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { is3DView = !is3DView },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (is3DView) greenNeon.copy(alpha = 0.9f) else slateCard),
+                        border = BorderStroke(1.dp, if (is3DView) Color(0xFF22C55E) else Color(0xFF334155)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        modifier = Modifier.height(38.dp)
+                    ) {
+                        pText(
+                            text = if (is3DView) "КАМЕРА: 3D" else "КАМЕРА: 2D",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (is3DView) Color.Black else Color.White
+                        )
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.End) {

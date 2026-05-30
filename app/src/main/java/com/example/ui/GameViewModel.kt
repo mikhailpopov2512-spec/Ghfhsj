@@ -138,6 +138,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     // Weapons / Fighting state variables
     private var shootCooldownTicks = 0
+    
+    // MODERN DEVELOPER ADMIN CONSOLE CHEAT MODIFIERS
+    var adminSpeedMultiplier = 1.0
+    var copsDumbMode = false
+    var copsTurboMode = false
+    var infiniteNitro = false
+    var infiniteAmmo = false
     private val shootMaxCooldown = 15 // ticks between shots
 
     init {
@@ -552,7 +559,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (current.status != GameStatus.GAMEPLAY) return
 
         // Deduct/Initiate fire cooldown
-        shootCooldownTicks = shootMaxCooldown
+        shootCooldownTicks = if (infiniteAmmo) 3 else shootMaxCooldown
 
         viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() } // Simple bullet fire sound simulation
 
@@ -665,8 +672,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // Accelerator boost calculation
         val nitroCapFactor = if (nitroActive && pNitro > 0.0) 1.5 else 1.0
-        val activeMaxSpeed = maxSpeed * nitroCapFactor
-        val activeAcceleration = acceleration * (if (nitroActive && pNitro > 0.0) 2.0 else 1.0)
+        val activeMaxSpeed = maxSpeed * nitroCapFactor * adminSpeedMultiplier
+        val activeAcceleration = acceleration * (if (nitroActive && pNitro > 0.0) 2.0 else 1.0) * adminSpeedMultiplier
 
         if (accelInput > 0.0 && pHealth > 0.0) {
             pSpeed += accelInput * activeAcceleration
@@ -690,7 +697,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Nitro
-        if (nitroActive && pNitro > 0.0 && accelInput > 0.1) {
+        if (infiniteNitro) {
+            pNitro = maxNitro
+        } else if (nitroActive && pNitro > 0.0 && accelInput > 0.1) {
             pNitro = (pNitro - 1.2).coerceAtLeast(0.0)
             if (random.nextInt(6) == 0) {
                 viewModelScope.launch(Dispatchers.Main) { SoundManager.playNitroSound() }
@@ -875,15 +884,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val targetAngle = atan2(dy, dx)
             cop.angle = steerTowards(cop.angle, targetAngle, 0.055)
 
-            val copMaxSpeed = 7.5 + current.heatLevel * 0.75
-            val copAccel = 0.11 + current.heatLevel * 0.015
+            val copMaxSpeed = (7.5 + current.heatLevel * 0.75) * (if (copsTurboMode) 2.5 else 1.0)
+            val copAccel = (0.11 + current.heatLevel * 0.015) * (if (copsTurboMode) 2.5 else 1.0)
 
-            val driveToPlayerSpeed = if (distToPlayer > 80.0) {
+            val driveToPlayerSpeed = if (copsDumbMode) {
+                0.0
+            } else if (distToPlayer > 80.0) {
                 (cop.speed + copAccel).coerceAtMost(copMaxSpeed)
             } else {
                 (cop.speed + copAccel * 0.5).coerceAtMost(copMaxSpeed * 0.65)
             }
-            cop.speed = driveToPlayerSpeed
+            cop.speed = if (copsDumbMode) 0.0 else driveToPlayerSpeed
 
             cop.vx = cos(cop.angle) * cop.speed
             cop.vy = sin(cop.angle) * cop.speed
@@ -1293,5 +1304,48 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.addCash(5000)
         }
+    }
+
+    fun adminInjectCustomCash(amount: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.addCash(amount)
+        }
+    }
+
+    fun adminSetWeaponLevel(lvl: Int) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(weaponLevel = lvl))
+        }
+    }
+
+    fun adminSpawnPickupWave(typeStr: String) {
+        val current = _gameState.value
+        if (current.status != GameStatus.GAMEPLAY) return
+        val px = current.playerX
+        val py = current.playerY
+        val type = when (typeStr.uppercase()) {
+            "COIN" -> ItemType.COIN
+            "REPAIR" -> ItemType.REPAIR
+            else -> ItemType.NITRO
+        }
+        val spawnedList = mutableListOf<GameItem>()
+        for (i in 0 until 12) {
+            val angle = random.nextDouble() * 2.0 * Math.PI
+            val dist = 80.0 + random.nextDouble() * 250.0
+            val ix = (px + cos(angle) * dist).coerceIn(100.0, mapSize - 100.0)
+            val iy = (py + sin(angle) * dist).coerceIn(100.0, mapSize - 100.0)
+            spawnedList.add(
+                GameItem(
+                    id = itemIdCounter++,
+                    x = ix,
+                    y = iy,
+                    type = type,
+                    isCollected = false
+                )
+            )
+        }
+        val newList = current.items + spawnedList
+        _gameState.value = current.copy(items = newList)
     }
 }

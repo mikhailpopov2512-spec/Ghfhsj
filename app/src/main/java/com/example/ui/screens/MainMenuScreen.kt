@@ -702,113 +702,512 @@ fun MainMenuScreen(
     // MASSIVE ROBUST ADMIN PANEL DIALOG (mikha_q ONLY)
     // ==========================================
     if (showAdminDialog && carConfig.nickname == "mikha_q") {
+        var customMoneyText by remember { mutableStateOf("") }
+        var adminTrigger by remember { mutableStateOf(0) } // For local reactive state force update
+
+        val currentSpeedMult = viewModel?.adminSpeedMultiplier ?: 1.0
+        val isCopsDumb = viewModel?.copsDumbMode ?: false
+        val isCopsTurbo = viewModel?.copsTurboMode ?: false
+        val isInfiniteNitro = viewModel?.infiniteNitro ?: false
+        val isInfiniteAmmo = viewModel?.infiniteAmmo ?: false
+
         AlertDialog(
             onDismissRequest = { showAdminDialog = false },
-            containerColor = Color(0xFF111827), // Gritty slate grey
+            containerColor = Color(0xFF070B13), // Deep dark hacker canvas
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.border(2.dp, Color(0xFF10B981), RoundedCornerShape(16.dp)), // Glowing neon emerald border
             title = {
-                Text(
-                    text = "АДМИН-ПАНЕЛЬ (mikha_q)",
-                    fontWeight = FontWeight.Black,
-                    color = Color.Red,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "❖ VAZ_HACK_TERMINAL v3.4 ❖",
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color(0xFF10B981),
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "СЕССИЯ: АКТИВНА [ПОЛЬЗОВАТЕЛЬ: mikha_q]",
+                        fontFamily = FontFamily.Monospace,
+                        color = Color(0xFF6B7280),
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
             },
             text = {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Row 1: Give Money + Give EXP
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel?.adminGiveMoney() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                                border = BorderStroke(1.dp, Color(0xFF334155)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("+10 млн ₽", color = Color(0xFF22C55E), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Button(
-                                onClick = { viewModel?.adminGiveExperience() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                                border = BorderStroke(1.dp, Color(0xFF334155)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("+1000 опыта", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    // Row 2: Immortality GodMode + Give Full Tuning
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val godModeLabel = if (carConfig.godMode) "Бессмертие ON" else "Бессмертие OFF"
-                            Button(
-                                onClick = { viewModel?.adminToggleGodMode() },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (carConfig.godMode) Color(0xFF22C55E) else Color(0xFFEF4444)
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(godModeLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Button(
-                                onClick = { viewModel?.adminFullTuning() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                                border = BorderStroke(1.dp, Color(0xFF38BDF8)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Полный тюниг", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    // Row 3: Rank promotions & demotions (Понизить / Повысить ранг)
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel?.adminDemoteRank() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Понизить ранг", fontSize = 11.sp)
-                            }
-
-                            Button(
-                                onClick = { viewModel?.adminSetMaxRank() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("МАКС ранг!", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    // Row 4: Custom Weather selections (Редактировать погоду)
+                    // SECTION 1: BALANCE & CASH CONTROL
                     item {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                            border = BorderStroke(1.dp, Color(0xFF4B5563))
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = "Регулировка Погоды (Реальное Время):",
+                                    text = "> СИСТЕМА УПРАВЛЕНИЯ КЭШЕМ",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF9CA3AF),
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF34D399),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel?.adminGiveMoney(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                                        border = BorderStroke(1.dp, Color(0xFF10B981)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1.1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("+10 млн ₽", color = Color(0xFF10B981), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel?.adminGiveExperience(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                                        border = BorderStroke(1.dp, Color(0xFF0284C7)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("+1000 EXP", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    TextField(
+                                        value = customMoneyText,
+                                        onValueChange = { customMoneyText = it },
+                                        placeholder = { Text("Сумма ₽...", fontSize = 11.sp, color = Color.Gray) },
+                                        modifier = Modifier.weight(1.3f).height(46.dp),
+                                        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Color.White),
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFF020617),
+                                            unfocusedContainerColor = Color(0xFF1E293B),
+                                            focusedIndicatorColor = Color(0xFF10B981),
+                                            unfocusedIndicatorColor = Color.Transparent
+                                        ),
+                                        singleLine = true
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            val amount = customMoneyText.toIntOrNull()
+                                            if (amount != null && amount > 0) {
+                                                viewModel?.adminInjectCustomCash(amount)
+                                                showCheatSaveMessage = "Внедрено: ${amount} ₽!"
+                                            } else {
+                                                showCheatSaveMessage = "Ошибка: неверная сумма!"
+                                            }
+                                            adminTrigger++
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f).height(42.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("ВНЕДРИТЬ", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 2: SPEED MULTIPLIERS (CHASSIS STAGES)
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> МОДИФИКАТОРЫ ДВИГАТЕЛЯ (ТЕКУЩИЙ: x$currentSpeedMult)",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFFFBBF24),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(1.0, 2.5, 5.0, 10.0).forEach { mult ->
+                                        val isActive = currentSpeedMult == mult
+                                        val label = when(mult) {
+                                            1.0 -> "СТОК (x1)"
+                                            2.5 -> "ST3 (x2.5)"
+                                            5.0 -> "СПОРТ (x5)"
+                                            else -> "ГИПЕР (x10)"
+                                        }
+                                        Button(
+                                            onClick = {
+                                                viewModel?.adminSpeedMultiplier = mult
+                                                adminTrigger++
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isActive) Color(0xFFD97706) else Color(0xFF1E293B)
+                                            ),
+                                            border = BorderStroke(1.dp, if (isActive) Color(0xFFFBBF24) else Color(0xFF334155)),
+                                            modifier = Modifier.weight(1f).height(32.dp),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(text = label, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 3: WEAPONS SYSTEM MASTER CODES
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> КЛИЕНТ БОЕПРИПАСОВ & ОРУЖИЯ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFFF43F5E),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf(0, 1, 2, 3).forEach { lvl ->
+                                        val isActive = carConfig.weaponLevel == lvl
+                                        val label = when(lvl) {
+                                            0 -> "БЕЗ ОРУЖИЯ"
+                                            1 -> "ПИСТОЛЕТ ПМ"
+                                            2 -> "АК-74у"
+                                            else -> "РПГ-7"
+                                        }
+                                        Button(
+                                            onClick = {
+                                                viewModel?.adminSetWeaponLevel(lvl)
+                                                adminTrigger++
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isActive) Color(0xFFE11D48) else Color(0xFF1E293B)
+                                            ),
+                                            border = BorderStroke(1.dp, if (isActive) Color(0xFFF43F5E) else Color(0xFF334155)),
+                                            modifier = Modifier.weight(1f).height(32.dp),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(text = label, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            viewModel?.infiniteAmmo = !isInfiniteAmmo
+                                            adminTrigger++
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isInfiniteAmmo) Color(0xFF10B981) else Color(0xFF1E293B)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isInfiniteAmmo) Color(0xFF10B981) else Color(0xFF334155)),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isInfiniteAmmo) "✓ БЕСКОНЕЧНЫЙ ОГНЕМЕТ" else "БЕСКОНЕЧНЫЕ ПАТРОНЫ",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isInfiniteAmmo) Color.Black else Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 4: CHEAT TOGGLES
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> СИСТЕМНЫЕ КЛЮЧИ БЕЗОПАСНОСТИ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF38BDF8),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    val godModeLabel = if (carConfig.godMode) "✓ БЕССМЕРТИЕ: ON" else "БЕССМЕРТИЕ"
+                                    Button(
+                                        onClick = { viewModel?.adminToggleGodMode(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (carConfig.godMode) Color(0xFF10B981) else Color(0xFF1E293B)
+                                        ),
+                                        border = BorderStroke(1.dp, if (carConfig.godMode) Color(0xFF10B981) else Color(0xFF334155)),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(text = godModeLabel, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (carConfig.godMode) Color.Black else Color.White)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            viewModel?.infiniteNitro = !isInfiniteNitro
+                                            adminTrigger++
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isInfiniteNitro) Color(0xFF10B981) else Color(0xFF1E293B)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isInfiniteNitro) Color(0xFF10B981) else Color(0xFF334155)),
+                                        modifier = Modifier.weight(1.1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isInfiniteNitro) "✓ БЕСКОНЕЧНОЕ НИТРО" else "БЕСКОНЕЧНОЕ НИТРО",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isInfiniteNitro) Color.Black else Color.White
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel?.adminFullTuning(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                                        border = BorderStroke(1.dp, Color(0xFF34D399)),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("ПОЛНЫЙ ТЮНИНГ (MAX)", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 5: COPS & CHASE REGS
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> СЛУЖБА ДПС & СТАВКИ ПОГОНИ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF6366F1),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            viewModel?.copsDumbMode = !isCopsDumb
+                                            if (viewModel?.copsDumbMode == true) viewModel?.copsTurboMode = false
+                                            adminTrigger++
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isCopsDumb) Color(0xFF10B981) else Color(0xFF1E293B)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isCopsDumb) Color(0xFF10B981) else Color(0xFF334155)),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(text = if (isCopsDumb) "✓ ДПС СПЯТ!" else "ОТКЛЮЧИТЬ ИИ", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isCopsDumb) Color.Black else Color.White)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            viewModel?.copsTurboMode = !isCopsTurbo
+                                            if (viewModel?.copsTurboMode == true) viewModel?.copsDumbMode = false
+                                            adminTrigger++
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isCopsTurbo) Color(0xFFEF4444) else Color(0xFF1E293B)
+                                        ),
+                                        border = BorderStroke(1.dp, if (isCopsTurbo) Color(0xFFEF4444) else Color(0xFF334155)),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(text = if (isCopsTurbo) "✓ ТУРБО-КОПЫ x3" else "ГОРЯЧАЯ ПОГОНЯ", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isCopsTurbo) Color.White else Color.White)
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel?.adminSpawnPolicePattern(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9D174D)),
+                                        modifier = Modifier.weight(1f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Спавн патрулей", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel?.adminKillAllPolice(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF065F46)),
+                                        modifier = Modifier.weight(1f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Ликвидировать ДПС", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 6: INSTANT ITEM SPAWNER MACHINE
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> МГНОВЕННЫЙ СПАВН ПРЕДМЕТОВ КРУГОМ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF06B6D4),
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf("COIN", "REPAIR", "NITRO").forEach { waveType ->
+                                        val label = when(waveType) {
+                                            "COIN" -> "МОНЕТЫ x12"
+                                            "REPAIR" -> "РЕМКИ x12"
+                                            else -> "НИТРО x12"
+                                        }
+                                        Button(
+                                            onClick = {
+                                                viewModel?.adminSpawnPickupWave(waveType)
+                                                showCheatSaveMessage = "12 предметов ($waveType) раскиданы возле Lada!"
+                                                adminTrigger++
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF083344)),
+                                            border = BorderStroke(1.dp, Color(0xFF06B6D4)),
+                                            modifier = Modifier.weight(1f).height(32.dp),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(text = label, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 7: COORDINATES MATRIX & ATMOSPHERE
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "> ТЕЛЕПОРТАЦИОННАЯ МАТРИЦА",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF94A3B8),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Button(
+                                        onClick = { viewModel?.adminTeleport(1); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
+                                        modifier = Modifier.weight(1.3f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Тюнинг-Про", fontSize = 9.sp)
+                                    }
+                                    Button(
+                                        onClick = { viewModel?.adminTeleport(2); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
+                                        modifier = Modifier.weight(1f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Раён Банд", fontSize = 9.sp)
+                                    }
+                                    Button(
+                                        onClick = { viewModel?.adminTeleport(3); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
+                                        modifier = Modifier.weight(1f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text("Хрущёвки", fontSize = 9.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 8: WEATHER PRESETS
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "> КОНТРОЛЛЕР АТМОСФЕРЫ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF94A3B8),
                                     fontWeight = FontWeight.Bold
                                 )
                                 Row(
@@ -818,7 +1217,7 @@ fun MainMenuScreen(
                                     listOf("OVERCAST", "RAIN", "SNOW").forEach { weatherPreset ->
                                         val isActive = carConfig.targetWeather == weatherPreset
                                         Button(
-                                            onClick = { viewModel?.adminSetWeather(weatherPreset) },
+                                            onClick = { viewModel?.adminSetWeather(weatherPreset); adminTrigger++ },
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = if (isActive) Color(0xFF0284C7) else Color(0xFF374151)
                                             ),
@@ -836,77 +1235,32 @@ fun MainMenuScreen(
                         }
                     }
 
-                    // Row 5: Teleport Matrix triggers
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1F2937)),
-                            border = BorderStroke(1.dp, Color(0xFF4B5563))
-                        ) {
-                            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    text = "Прямой Телепорт на Координаты:",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF9CA3AF),
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Button(
-                                        onClick = { viewModel?.adminTeleport(1) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
-                                        modifier = Modifier.weight(1.3f).height(32.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text("Тюнинг-Про", fontSize = 9.sp)
-                                    }
-                                    Button(
-                                        onClick = { viewModel?.adminTeleport(2) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
-                                        modifier = Modifier.weight(1f).height(32.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text("Раён Банд", fontSize = 9.sp)
-                                    }
-                                    Button(
-                                        onClick = { viewModel?.adminTeleport(3) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF374151)),
-                                        modifier = Modifier.weight(1f).height(32.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text("Хрущёвки", fontSize = 9.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Row 6: Spawn cops & Dispatch All cops
+                    // SECTION 9: RANKS & SYSTEM SAVES
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { viewModel?.adminSpawnPolicePattern() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9D174D)),
-                                modifier = Modifier.weight(1f)
+                                onClick = { viewModel?.adminSetMaxRank(); adminTrigger++ },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                                modifier = Modifier.weight(1f).height(36.dp),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Спавн врагов", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("МАКСИМАЛЬНЫЙ РАНГ 50", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
 
                             Button(
-                                onClick = { viewModel?.adminKillAllPolice() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF065F46)),
-                                modifier = Modifier.weight(1f)
+                                onClick = { viewModel?.adminDemoteRank(); adminTrigger++ },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF475569)),
+                                modifier = Modifier.weight(1f).height(36.dp),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Убить всех врагов", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("СБРОС ДО РАНГА 1", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
 
-                    // Simulated Cheat save integrations
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -916,9 +1270,10 @@ fun MainMenuScreen(
                                 onClick = { showCheatSaveMessage = "Состояние сохранено! Чит-сейв записан в локальную БД." },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
                                 border = BorderStroke(1.dp, Color(0xFF4B5563)),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f).height(34.dp),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Сохранить игру", fontSize = 10.sp)
+                                Text("Сохранить чит-сессию", fontSize = 10.sp)
                             }
 
                             Button(
@@ -930,9 +1285,10 @@ fun MainMenuScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
                                 border = BorderStroke(1.dp, Color(0xFF4B5563)),
-                                modifier = Modifier.weight(1.1f)
+                                modifier = Modifier.weight(1.1f).height(34.dp),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Загрузить чит-сейв", fontSize = 10.sp)
+                                Text("Загрузить чит-сессию", fontSize = 10.sp)
                             }
                         }
                     }
@@ -957,9 +1313,11 @@ fun MainMenuScreen(
                         showAdminDialog = false
                         showCheatSaveMessage = ""
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("ЗАКРЫТЬ", color = Color.White)
+                    Text("ЗАКРЫТЬ ТЕРМИНАЛ", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
                 }
             }
         )
