@@ -1,0 +1,6 @@
+{
+  "name": "Car Chase Open World",
+  "description": "High-speed open-world racing game. Evade police pursuits, collect coins, and upgrade your sports car in the custom tuning garage!",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
