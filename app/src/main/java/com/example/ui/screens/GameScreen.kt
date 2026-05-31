@@ -643,14 +643,17 @@ fun GameScreen(
                     }
                 }
 
-                // 9. Draw Player's Black Lada Samara in 3D Chase View!
+                // 9. Draw Player's Dynamic Vehicle Model in 3D Chase View!
                 val lZ = D_behind.toDouble() - 15.0
                 val tiltX = -viewModel.steerInput * 16.0
-                val ldaCY = -14.0
+                
+                // Slammed Priora sits much lower
+                val ldaCY = if (carConfig.carModelIndex == 2) -4.0 else -14.0
 
-                val sizeLada3D = (54.0f * F) / lZ.toFloat()
-                val ldaW = sizeLada3D.coerceIn(10f, 140f)
-                val ldaH = (ldaW * 0.46f).coerceIn(4f, 65f)
+                val isKamaz = carConfig.carModelIndex == 3
+                val sizeLada3D = (if (isKamaz) 78.0f else 54.0f) * F / lZ.toFloat()
+                val ldaW = sizeLada3D.coerceIn(10f, 180f)
+                val ldaH = (ldaW * (if (isKamaz) 0.85f else 0.46f)).coerceIn(4f, 130f)
 
                 if (carConfig.neonUnderglow) {
                     drawCircle(
@@ -674,6 +677,7 @@ fun GameScreen(
                     drawPath(flamePath, Color(0xFF00D2FF))
                 }
 
+                // Black Tires
                 drawRect(
                     color = Color.Black,
                     topLeft = Offset(pLocX - ldaW * 0.44f, pLocY - ldaH * 0.15f),
@@ -685,59 +689,94 @@ fun GameScreen(
                     size = Size(ldaW * 0.2f, ldaH * 0.35f)
                 )
 
-                drawRoundRect(
-                    color = Color(paintCarColor),
-                    topLeft = Offset(pLocX - ldaW * 0.50f, pLocY - ldaH),
-                    size = Size(ldaW, ldaH),
-                    cornerRadius = CornerRadius(6f, 6f)
-                )
-
-                val ldaWindshield = Path().apply {
-                    moveTo(pLocX - ldaW * 0.36f, pLocY - ldaH * 0.92f)
-                    lineTo(pLocX + ldaW * 0.36f, pLocY - ldaH * 0.92f)
-                    lineTo(pLocX + ldaW * 0.43f, pLocY - ldaH * 0.58f)
-                    lineTo(pLocX - ldaW * 0.43f, pLocY - ldaH * 0.58f)
-                    close()
-                }
-                drawPath(ldaWindshield, Color(0xFF0F172A))
-
-                drawRect(
-                    color = Color(0xFFEF4444),
-                    topLeft = Offset(pLocX - ldaW * 0.47f, pLocY - ldaH * 0.45f),
-                    size = Size(ldaW * 0.18f, ldaH * 0.18f)
-                )
-                drawRect(
-                    color = Color(0xFFEF4444),
-                    topLeft = Offset(pLocX + ldaW * 0.29f, pLocY - ldaH * 0.45f),
-                    size = Size(ldaW * 0.18f, ldaH * 0.18f)
-                )
-
-                drawLine(
-                    color = Color(0xFF94A3B8),
-                    start = Offset(pLocX - ldaW * 0.35f, pLocY - ldaH * 0.15f),
-                    end = Offset(pLocX + ldaW * 0.35f, pLocY - ldaH * 0.15f),
-                    strokeWidth = 2f
-                )
-
-                if (carConfig.bigSpoiler) {
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 0.92f),
-                        end = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 1.15f),
-                        strokeWidth = 3f
+                if (isKamaz) {
+                    // Draw KAMAZ heavy cabin box body
+                    drawRoundRect(
+                        color = Color(paintCarColor),
+                        topLeft = Offset(pLocX - ldaW * 0.48f, pLocY - ldaH),
+                        size = Size(ldaW * 0.96f, ldaH),
+                        cornerRadius = CornerRadius(4f, 4f)
                     )
-                    drawLine(
-                        color = Color.White,
-                        start = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 0.92f),
-                        end = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 1.15f),
-                        strokeWidth = 3f
-                    )
+                    // High rectangular windscreen splits (Kamaz styling)
+                    val ldaWindshield = Path().apply {
+                        moveTo(pLocX - ldaW * 0.42f, pLocY - ldaH * 0.90f)
+                        lineTo(pLocX + ldaW * 0.42f, pLocY - ldaH * 0.90f)
+                        lineTo(pLocX + ldaW * 0.42f, pLocY - ldaH * 0.52f)
+                        lineTo(pLocX - ldaW * 0.42f, pLocY - ldaH * 0.52f)
+                        close()
+                    }
+                    drawPath(ldaWindshield, Color(0xFF0F172A))
+                    // Center strut line for split windshield
                     drawLine(
                         color = Color(paintCarColor),
-                        start = Offset(pLocX - ldaW * 0.46f, pLocY - ldaH * 1.15f),
-                        end = Offset(pLocX + ldaW * 0.46f, pLocY - ldaH * 1.15f),
-                        strokeWidth = 5f
+                        start = Offset(pLocX, pLocY - ldaH * 0.90f),
+                        end = Offset(pLocX, pLocY - ldaH * 0.52f),
+                        strokeWidth = 3f
                     )
+                    // Giant yellow fog lights & taillights
+                    drawCircle(color = Color(0xFFFBBF24), radius = ldaW * 0.08f, center = Offset(pLocX - ldaW * 0.36f, pLocY - ldaH * 0.22f))
+                    drawCircle(color = Color(0xFFFBBF24), radius = ldaW * 0.08f, center = Offset(pLocX + ldaW * 0.36f, pLocY - ldaH * 0.22f))
+                    drawRect(color = Color(0xFFEF4444), topLeft = Offset(pLocX - ldaW * 0.46f, pLocY - ldaH * 0.40f), size = Size(ldaW * 0.12f, ldaH * 0.12f))
+                    drawRect(color = Color(0xFFEF4444), topLeft = Offset(pLocX + ldaW * 0.34f, pLocY - ldaH * 0.40f), size = Size(ldaW * 0.12f, ldaH * 0.12f))
+                } else {
+                    // Draw Hatchback/Sedan dynamic outline
+                    drawRoundRect(
+                        color = Color(paintCarColor),
+                        topLeft = Offset(pLocX - ldaW * 0.50f, pLocY - ldaH),
+                        size = Size(ldaW, ldaH),
+                        cornerRadius = CornerRadius(6f, 6f)
+                    )
+
+                    val ldaWindshield = Path().apply {
+                        moveTo(pLocX - ldaW * 0.36f, pLocY - ldaH * 0.92f)
+                        lineTo(pLocX + ldaW * 0.36f, pLocY - ldaH * 0.92f)
+                        lineTo(pLocX + ldaW * 0.43f, pLocY - ldaH * 0.58f)
+                        lineTo(pLocX - ldaW * 0.43f, pLocY - ldaH * 0.58f)
+                        close()
+                    }
+                    drawPath(ldaWindshield, Color(0xFF0F172A))
+
+                    // Tail lights
+                    drawRect(
+                        color = Color(0xFFEF4444),
+                        topLeft = Offset(pLocX - ldaW * 0.47f, pLocY - ldaH * 0.45f),
+                        size = Size(ldaW * 0.18f, ldaH * 0.18f)
+                    )
+                    drawRect(
+                        color = Color(0xFFEF4444),
+                        topLeft = Offset(pLocX + ldaW * 0.29f, pLocY - ldaH * 0.45f),
+                        size = Size(ldaW * 0.18f, ldaH * 0.18f)
+                    )
+
+                    // Rear bumper trim line
+                    drawLine(
+                        color = Color(0xFF94A3B8),
+                        start = Offset(pLocX - ldaW * 0.35f, pLocY - ldaH * 0.15f),
+                        end = Offset(pLocX + ldaW * 0.35f, pLocY - ldaH * 0.15f),
+                        strokeWidth = 2f
+                    )
+
+                    // Big spoiler custom wings
+                    if (carConfig.bigSpoiler) {
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 0.92f),
+                            end = Offset(pLocX - ldaW * 0.4f, pLocY - ldaH * 1.15f),
+                            strokeWidth = 3f
+                        )
+                        drawLine(
+                            color = Color.White,
+                            start = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 0.92f),
+                            end = Offset(pLocX + ldaW * 0.4f, pLocY - ldaH * 1.15f),
+                            strokeWidth = 3f
+                        )
+                        drawLine(
+                            color = Color(paintCarColor),
+                            start = Offset(pLocX - ldaW * 0.46f, pLocY - ldaH * 1.15f),
+                            end = Offset(pLocX + ldaW * 0.46f, pLocY - ldaH * 1.15f),
+                            strokeWidth = 5f
+                        )
+                    }
                 }
 
                 // 10. Draw 3D Falling Weather Overlays (RAIN/SNOW)

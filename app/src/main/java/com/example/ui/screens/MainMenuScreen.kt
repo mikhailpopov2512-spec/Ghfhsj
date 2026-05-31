@@ -68,6 +68,10 @@ fun MainMenuScreen(
     var showAdminDialog by remember { mutableStateOf(false) }
     var showCheatSaveMessage by remember { mutableStateOf("") }
 
+    var showAdminEntranceDialog by remember { mutableStateOf(false) }
+    var adminEntranceUser by remember { mutableStateOf("mikha_q") }
+    var adminEntrancePass by remember { mutableStateOf("") }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -84,6 +88,39 @@ fun MainMenuScreen(
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
+        // Floating Admin Corner Access padlock button (top-right corner entry)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp, end = 16.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF1E293B).copy(alpha = 0.82f))
+                .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
+                .clickable { showAdminEntranceDialog = true }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = "Admin Entry",
+                    tint = Color(0xFF10B981),
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = "АДМИН",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF10B981),
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -1318,6 +1355,104 @@ fun MainMenuScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("ЗАКРЫТЬ ТЕРМИНАЛ", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                }
+            }
+        )
+    }
+
+    if (showAdminEntranceDialog) {
+        AlertDialog(
+            onDismissRequest = { showAdminEntranceDialog = false },
+            containerColor = Color(0xFF0F172A),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.border(1.dp, Color(0xFF10B981), RoundedCornerShape(12.dp)),
+            title = {
+                Text(
+                    text = "🔑 ВХОД АДМИНИСТРАТОРА",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Введи имя администратора («mikha_q») и секретный шифр безопасности ДПС.",
+                        fontSize = 11.sp,
+                        color = Color(0xFFA0A0AB)
+                    )
+
+                    // Nickname field
+                    OutlinedTextField(
+                        value = adminEntranceUser,
+                        onValueChange = { adminEntranceUser = it },
+                        label = { Text("Имя Пользователя", fontSize = 11.sp) },
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF020617),
+                            unfocusedContainerColor = Color(0xFF020617)
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Password field
+                    OutlinedTextField(
+                        value = adminEntrancePass,
+                        onValueChange = { adminEntrancePass = it },
+                        label = { Text("Пароль", fontSize = 11.sp) },
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color(0xFF020617),
+                            unfocusedContainerColor = Color(0xFF020617)
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Password hint instruction
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x1F22C55E))
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "💡 ПОДСКАЗКА ПАРОЛЯ:\nШифр безопасности: mikha_pass_2026",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4ADE80),
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (adminEntrancePass.trim() == "mikha_pass_2026" && adminEntranceUser.trim().isNotEmpty()) {
+                            val enteredUser = adminEntranceUser.trim()
+                            tempNickname = enteredUser
+                            viewModel?.updateNickname(enteredUser)
+                            showAdminEntranceDialog = false
+                            showAdminDialog = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("ПОДТВЕРДИТЬ", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdminEntranceDialog = false }) {
+                    Text("ОТМЕНА", color = Color.Gray)
                 }
             }
         )

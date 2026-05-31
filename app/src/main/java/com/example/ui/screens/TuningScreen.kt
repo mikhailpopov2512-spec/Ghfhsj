@@ -144,12 +144,20 @@ fun TuningScreen(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val modelProjectName = when (config.carModelIndex) {
+                            0 -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: ВАЗ-2106 «КЛАССИКА»"
+                            1 -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: ВАЗ-2114 «ЧЕТЫРКА»"
+                            2 -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: LADA PRIORA «ЗАНИЖЕННАЯ»"
+                            3 -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: КАМАЗ-54115 «ГРОМОБОЙ»"
+                            4 -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: BMW E34 «БУМЕР ОПГ»"
+                            else -> "ИНЖЕНЕРНЫЙ ПРОЕКТ: КИБЕРКОРЧ"
+                        }
                         pText(
-                            text = "ИНЖЕНЕРНЫЙ ПРОЕКТ: ВАЗ-2114 SAMARA",
+                            text = modelProjectName,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             color = Color(0xFFA0A0AB),
-                            letterSpacing = 1.5.sp
+                            letterSpacing = 1.2.sp
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -188,16 +196,61 @@ fun TuningScreen(
                             // Dynamic Car Body drawing paths
                             val carBrushColor = Color(config.carColor)
                             val carOutlinePath = Path().apply {
-                                moveTo(w * 0.15f, h * 0.65f) // rear tail
-                                lineTo(w * 0.20f, h * 0.45f) // wing mount
-                                lineTo(w * 0.35f, h * 0.45f) // cabin start
-                                lineTo(w * 0.45f, h * 0.28f) // roof
-                                lineTo(w * 0.62f, h * 0.28f) // windshield
-                                lineTo(w * 0.75f, h * 0.50f) // hood
-                                lineTo(w * 0.88f, h * 0.52f) // front bumper
-                                lineTo(w * 0.88f, h * 0.70f) // front chin splitter
-                                lineTo(w * 0.15f, h * 0.70f) // bottom flat floor
-                                close()
+                                when (config.carModelIndex) {
+                                    3 -> { // КАМАЗ (Heavy boxy cab-over truck outline!)
+                                        moveTo(w * 0.15f, h * 0.72f) // bottom rear floor
+                                        lineTo(w * 0.15f, h * 0.15f) // heavy container top rear
+                                        lineTo(w * 0.60f, h * 0.15f) // heavy container top front
+                                        lineTo(w * 0.60f, h * 0.32f) // back of cabin drop
+                                        lineTo(w * 0.86f, h * 0.32f) // truck high cabin top
+                                        lineTo(w * 0.86f, h * 0.72f) // vertical flat truck front grill
+                                        close()
+                                    }
+                                    0 -> { // ВАЗ-2106 (Sedan classic)
+                                        moveTo(w * 0.15f, h * 0.68f) // rear floor
+                                        lineTo(w * 0.15f, h * 0.50f) // trunk start
+                                        lineTo(w * 0.30f, h * 0.50f) // hood/trunk line
+                                        lineTo(w * 0.40f, h * 0.35f) // rear glass window pitch
+                                        lineTo(w * 0.64f, h * 0.35f) // flat roof
+                                        lineTo(w * 0.72f, h * 0.50f) // windshield pitch
+                                        lineTo(w * 0.86f, h * 0.50f) // flat vertical front hood
+                                        lineTo(w * 0.86f, h * 0.68f) // front bumper
+                                        close()
+                                    }
+                                    2 -> { // Lada Priora (Slammed modern low profile sedan)
+                                        moveTo(w * 0.13f, h * 0.73f) // slammed low floor
+                                        lineTo(w * 0.15f, h * 0.53f) // low trunk
+                                        lineTo(w * 0.32f, h * 0.53f) 
+                                        lineTo(w * 0.43f, h * 0.33f) // sleek cabin
+                                        lineTo(w * 0.63f, h * 0.33f) // roof
+                                        lineTo(w * 0.74f, h * 0.51f) // windscreen
+                                        lineTo(w * 0.87f, h * 0.71f) // low hood
+                                        lineTo(w * 0.87f, h * 0.73f) // slammed bumper
+                                        close()
+                                    }
+                                    4 -> { // BMW E34 (Sleek bandit sport sedan, aggressive front nose)
+                                        moveTo(w * 0.14f, h * 0.68f)
+                                        lineTo(w * 0.16f, h * 0.48f) // wing
+                                        lineTo(w * 0.33f, h * 0.48f) // trunk
+                                        lineTo(w * 0.42f, h * 0.29f) // lean screen
+                                        lineTo(w * 0.63f, h * 0.29f) // low roof
+                                        lineTo(w * 0.72f, h * 0.46f) // sloped front screen
+                                        lineTo(w * 0.84f, h * 0.46f) // long hood
+                                        lineTo(w * 0.86f, h * 0.50f) // double kidney grill nose tilt
+                                        lineTo(w * 0.86f, h * 0.68f) // chin spoiler
+                                        close()
+                                    }
+                                    else -> { // ВАЗ-2114 Hatchback default
+                                        moveTo(w * 0.15f, h * 0.68f)
+                                        lineTo(w * 0.24f, h * 0.42f) // steep hatchback tail
+                                        lineTo(w * 0.42f, h * 0.30f) // cabin flat roof
+                                        lineTo(w * 0.62f, h * 0.30f)
+                                        lineTo(w * 0.73f, h * 0.50f) // windshield
+                                        lineTo(w * 0.86f, h * 0.52f) // hood
+                                        lineTo(w * 0.86f, h * 0.68f) // front bumper
+                                        close()
+                                    }
+                                }
                             }
 
                             // Draw Neon Green Underglow glowing reflection if equipped!
@@ -293,6 +346,117 @@ fun TuningScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = if (config.bigSpoiler) blueAccent else Color.Gray
                             )
+                        }
+                    }
+                }
+            }
+
+            // Car Model Selector & Shop Card
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = slateCard),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        pText(
+                            text = "АВТОПАРК (УПРАВЛЕНИЕ ГАРАЖОМ)",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            letterSpacing = 1.0.sp
+                        )
+
+                        // Car catalog: Triple(Model name, price in rubles, description)
+                        val carModels = listOf(
+                            Triple("ВАЗ-2106 «Шоха»", 0, "Легендарная советская классика. Задний привод."),
+                            Triple("ВАЗ-2114 «Четырка»", 120000, "Дерзкий пацанский хэтчбек. Бодрая передняя тяга."),
+                            Triple("LADA Priora «Сликер»", 350000, "Пневмоподвеска опущенная в пол, ксенон."),
+                            Triple("КАМАЗ-54115 «Громобой»", 1800000, "Сверхтяжёлый 3D грузовик! Легко таранит ДПС."),
+                            Triple("BMW E34 «Бумер ОПГ»", 4000000, "Бандитский спорт-седан. Максимальная скорость и заносы.")
+                        )
+
+                        carModels.forEachIndexed { carIdx, (name, price, desc) ->
+                            val isSelected = config.carModelIndex == carIdx
+                            val canAfford = config.cash >= price
+
+                            val borderCol = if (isSelected) greenNeon else if (canAfford) Color(0xFF334155) else Color(0x52EF4444)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0x1F10B981) else Color(0xFF0F172A))
+                                    .border(1.dp, borderCol, RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        if (isSelected) {
+                                            // already active
+                                        } else if (canAfford) {
+                                            viewModel.purchaseCarModel(carIdx, price)
+                                        } else {
+                                            // Simply select directly if it's already bought or cheat
+                                            // (To make it responsive and easy, let them select directly or buy)
+                                            viewModel.purchaseCarModel(carIdx, price)
+                                        }
+                                    }
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1.5f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically, 
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            pText(
+                                                text = name,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) greenNeon else Color.White,
+                                                fontSize = 13.sp
+                                            )
+                                            if (isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(greenNeon.copy(alpha = 0.2f))
+                                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                                ) {
+                                                    pText("ДОСТУПЕН", fontSize = 8.sp, color = greenNeon, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        pText(
+                                            text = desc,
+                                            color = Color(0xFFA0A0AB),
+                                            fontSize = 10.sp
+                                        )
+                                    }
+
+                                    Column(
+                                        horizontalAlignment = Alignment.End,
+                                        modifier = Modifier.weight(0.8f)
+                                    ) {
+                                        if (price == 0) {
+                                            pText(text = "БЕСПЛАТНО", color = greenNeon, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        } else {
+                                            pText(
+                                                text = "${NumberFormat.getNumberInstance(Locale.US).format(price)} ₽",
+                                                color = if (canAfford) yellowGold else Color(0xFFEF4444),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

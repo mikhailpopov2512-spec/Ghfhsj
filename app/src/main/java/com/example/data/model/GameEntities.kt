@@ -43,7 +43,8 @@ data class CarConfig(
     val targetWeather: String = "OVERCAST", // OVERCAST, RAIN, SNOW
     val godMode: Boolean = false,
     val bigSpoiler: Boolean = true, // Lada sports spoiler enabled
-    val neonUnderglow: Boolean = true // Neon green glow behind Lada
+    val neonUnderglow: Boolean = true, // Neon green glow behind Lada
+    val carModelIndex: Int = 0 // 0 = ВАЗ-2106, 1 = ВАЗ-2114, 2 = Приора, 3 = КАМАЗ, 4 = BMW E34
 )
 
 @Entity(tableName = "score_records")

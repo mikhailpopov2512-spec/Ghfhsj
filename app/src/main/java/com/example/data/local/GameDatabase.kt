@@ -27,7 +27,7 @@ interface ScoreRecordDao {
     suspend fun insertScore(score: ScoreRecord)
 }
 
-@Database(entities = [CarConfig::class, ScoreRecord::class], version = 1, exportSchema = false)
+@Database(entities = [CarConfig::class, ScoreRecord::class], version = 2, exportSchema = false)
 abstract class GameDatabase : RoomDatabase() {
     abstract fun carConfigDao(): CarConfigDao
     abstract fun scoreRecordDao(): ScoreRecordDao

@@ -246,12 +246,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyPhysicsUpgrades(config: CarConfig) {
-        // Normal tuning physics
-        maxSpeed = 10.0 + (config.engineLevel - 1) * 1.5 // 10.0 to 16.0 px/frame
-        acceleration = 0.18 + (config.engineLevel - 1) * 0.05 // 0.18 to 0.38
-        gripFactor = 0.08 + (config.tyresLevel - 1) * 0.04 // 0.08 to 0.24
-        brakingForce = 0.25 + (config.brakesLevel - 1) * 0.08
-        maxNitro = 100.0 + (config.nitroLevel - 1) * 20.0
+        // Base upgrades
+        val rawMaxSpeed = 10.0 + (config.engineLevel - 1) * 1.5
+        val rawAccel = 0.18 + (config.engineLevel - 1) * 0.05
+        val rawGrip = 0.08 + (config.tyresLevel - 1) * 0.04
+        val rawBraking = 0.25 + (config.brakesLevel - 1) * 0.08
+        val rawMaxNitro = 100.0 + (config.nitroLevel - 1) * 20.0
+
+        // Car model specific multipliers: (speedMult, accelMult, gripMult)
+        val (speedMult, accelMult, gripMult) = when (config.carModelIndex) {
+            0 -> Triple(0.90, 0.90, 0.95)   // ВАЗ 2106 "Шоха" (Classic)
+            1 -> Triple(1.05, 1.05, 1.10)   // ВАЗ 2114 "Четырка" (Patsan)
+            2 -> Triple(1.25, 1.25, 1.20)   // Приора (Slammed)
+            3 -> Triple(0.70, 0.85, 1.35)   // КАМАЗ (Heavy armortruck)
+            4 -> Triple(1.60, 1.55, 1.45)   // BMW E34 (OPG Beemer)
+            else -> Triple(1.0, 1.0, 1.0)
+        }
+
+        maxSpeed = rawMaxSpeed * speedMult
+        acceleration = rawAccel * accelMult
+        gripFactor = rawGrip * gripMult
+        brakingForce = rawBraking
+        maxNitro = rawMaxNitro
         currentCarColor = config.carColor
 
         // Apply weather sliding influence directly
@@ -729,7 +745,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             pSpeed = -pSpeed * 0.3
             px = px.coerceIn(40.0, mapSize - 40.0)
             if (!pconfig.godMode) {
-                pHealth = (pHealth - abs(pSpeed) * 3.0).coerceAtLeast(0.0)
+                val dmg = (abs(pSpeed) * 3.0) / getCarWeightFactor()
+                pHealth = (pHealth - dmg).coerceAtLeast(0.0)
             }
             viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() }
         }
@@ -737,7 +754,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             pSpeed = -pSpeed * 0.3
             py = py.coerceIn(40.0, mapSize - 40.0)
             if (!pconfig.godMode) {
-                pHealth = (pHealth - abs(pSpeed) * 3.0).coerceAtLeast(0.0)
+                val dmg = (abs(pSpeed) * 3.0) / getCarWeightFactor()
+                pHealth = (pHealth - dmg).coerceAtLeast(0.0)
             }
             viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() }
         }
@@ -760,7 +778,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     val impactVelocity = abs(pSpeed)
                     if (impactVelocity > 1.5) {
                         if (!pconfig.godMode) {
-                            pHealth = (pHealth - impactVelocity * 2.8).coerceAtLeast(0.0)
+                            val dmg = (impactVelocity * 2.8) / getCarWeightFactor()
+                            pHealth = (pHealth - dmg).coerceAtLeast(0.0)
                         }
                         viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() }
                     }
@@ -936,9 +955,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 if (relSpeed > 2.0) {
                     viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() }
                     
+                    val wF = getCarWeightFactor()
                     if (pSpeed > cop.speed && pSpeed > 4.0) {
-                        cop.health -= (pSpeed * 18.0)
-                        pSpeed = pSpeed * 0.4
+                        cop.health -= (pSpeed * 18.0) * wF
+                        pSpeed = pSpeed * (if (wF > 2.0) 0.82 else 0.40) // Kamaz retains most speed on impact!
                         cop.speed = -cop.speed * 0.4
                         
                         if (cop.health <= 0.0) {
@@ -947,10 +967,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else {
                         if (!pconfig.godMode) {
-                            pHealth = (pHealth - (cop.speed * 4.2)).coerceAtLeast(0.0)
+                            val dmg = (cop.speed * 4.2) / wF
+                            pHealth = (pHealth - dmg).coerceAtLeast(0.0)
                         }
                         cop.speed = -cop.speed * 0.3
-                        pSpeed = pSpeed * 0.5
+                        pSpeed = pSpeed * (if (wF > 2.0) 0.80 else 0.50)
                     }
                 } else {
                     if (abs(pSpeed) < 0.8 && abs(cop.speed) < 0.8 && pHealth > 0.0) {
@@ -1347,5 +1368,34 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
         val newList = current.items + spawnedList
         _gameState.value = current.copy(items = newList)
+    }
+
+    fun getCarWeightFactor(): Double {
+        return when (carConfigState.value.carModelIndex) {
+            0 -> 1.0   // ВАЗ-2106
+            1 -> 1.0   // ВАЗ-2114
+            2 -> 0.95  // Приора
+            3 -> 3.5   // КАМАЗ (Super heavy)
+            4 -> 1.25  // BMW E34
+            else -> 1.0
+        }
+    }
+
+    fun purchaseCarModel(index: Int, cost: Int) {
+        val config = carConfigState.value
+        if (config.cash >= cost) {
+            viewModelScope.launch(Dispatchers.IO) {
+                if (repository.spendCash(cost)) {
+                    repository.saveCarConfig(config.copy(carModelIndex = index))
+                }
+            }
+        }
+    }
+
+    fun selectCarModel(index: Int) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(carModelIndex = index))
+        }
     }
 }
