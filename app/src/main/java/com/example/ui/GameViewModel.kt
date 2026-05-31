@@ -113,7 +113,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
     // Map properties
-    val mapSize = 4000.0
+    val mapSize: Double
+        get() = when (carConfigState.value.mapSizeSetting) {
+            "NORMAL" -> 2500.0
+            "BIG" -> 4500.0
+            "ULTRA" -> 6500.0
+            else -> 4500.0
+        }
     val obstacles = mutableListOf<Obstacle>()
     private var random = Random()
 
@@ -310,15 +316,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val rawBraking = 0.25 + (config.brakesLevel - 1) * 0.08
         val rawMaxNitro = 100.0 + (config.nitroLevel - 1) * 20.0
 
-        // Car model specific multipliers: (speedMult, accelMult, gripMult)
-        val (speedMult, accelMult, gripMult) = when (config.carModelIndex) {
-            0 -> Triple(0.90, 0.90, 0.95)   // ВАЗ 2106 "Шоха" (Classic)
-            1 -> Triple(1.05, 1.05, 1.10)   // ВАЗ 2114 "Четырка" (Patsan)
-            2 -> Triple(1.25, 1.25, 1.20)   // Приора (Slammed)
-            3 -> Triple(0.70, 0.85, 1.35)   // КАМАЗ (Heavy armortruck)
-            4 -> Triple(1.60, 1.55, 1.45)   // BMW E34 (OPG Beemer)
-            else -> Triple(1.0, 1.0, 1.0)
-        }
+        // Car model specific multipliers from CarCatalog
+        val model = com.example.data.model.CarCatalog.models.getOrNull(config.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+        val speedMult = model.speedFactor
+        val accelMult = model.accelerationFactor
+        val gripMult = if (model.weightFactor < 1.0) 1.15 else if (model.weightFactor > 2.5) 1.40 else 1.05
 
         maxSpeed = rawMaxSpeed * speedMult
         acceleration = rawAccel * accelMult
@@ -1428,14 +1430,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun getCarWeightFactor(): Double {
-        return when (carConfigState.value.carModelIndex) {
-            0 -> 1.0   // ВАЗ-2106
-            1 -> 1.0   // ВАЗ-2114
-            2 -> 0.95  // Приора
-            3 -> 3.5   // КАМАЗ (Super heavy)
-            4 -> 1.25  // BMW E34
-            else -> 1.0
-        }
+        val model = com.example.data.model.CarCatalog.models.getOrNull(carConfigState.value.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+        return model.weightFactor
     }
 
     fun purchaseCarModel(index: Int, cost: Int) {
@@ -1453,6 +1449,54 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val config = carConfigState.value
         viewModelScope.launch(Dispatchers.IO) {
             repository.saveCarConfig(config.copy(carModelIndex = index))
+        }
+    }
+
+    fun adminSetGraphicsQuality(quality: String) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(graphicsQuality = quality))
+        }
+    }
+
+    fun adminSetMapSizeSetting(sizePreset: String) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(mapSizeSetting = sizePreset))
+        }
+    }
+
+    fun adminToggleVipStatus() {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(hasVipStatus = !config.hasVipStatus))
+        }
+    }
+
+    fun adminToggleFullControl() {
+        val config = carConfigState.value
+        val target = !config.hasFullAdminControl
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(
+                config.copy(
+                    hasFullAdminControl = target,
+                    godMode = if (target) true else config.godMode,
+                    weaponLevel = if (target) 3 else config.weaponLevel,
+                    engineLevel = if (target) 5 else config.engineLevel,
+                    tyresLevel = if (target) 5 else config.tyresLevel,
+                    brakesLevel = if (target) 5 else config.brakesLevel,
+                    nitroLevel = if (target) 5 else config.nitroLevel
+                )
+            )
+        }
+        if (target) {
+            infiniteAmmo = true
+            infiniteNitro = true
+            adminSpeedMultiplier = 10.0
+        } else {
+            infiniteAmmo = false
+            infiniteNitro = false
+            adminSpeedMultiplier = 1.0
         }
     }
 }

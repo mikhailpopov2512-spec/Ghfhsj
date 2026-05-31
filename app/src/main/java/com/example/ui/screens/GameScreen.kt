@@ -715,10 +715,11 @@ fun GameScreen(
                     val lZ = D_behind.toDouble() - 15.0
                 val tiltX = -viewModel.steerInput * 16.0
                 
-                // Slammed Priora sits much lower
-                val ldaCY = if (carConfig.carModelIndex == 2) -4.0 else -14.0
+                // Slammed profile styling
+                val modelX = com.example.data.model.CarCatalog.models.getOrNull(carConfig.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+                val ldaCY = if (modelX.interiorType == 2) -4.0 else -14.0
 
-                val isKamaz = carConfig.carModelIndex == 3
+                val isKamaz = modelX.interiorType == 3
                 val sizeLada3D = (if (isKamaz) 78.0f else 54.0f) * F / lZ.toFloat()
                 val ldaW = sizeLada3D.coerceIn(10f, 180f)
                 val ldaH = (ldaW * (if (isKamaz) 0.85f else 0.46f)).coerceIn(4f, 130f)
@@ -963,8 +964,9 @@ fun GameScreen(
                     val swayDeg = (viewModel.steerInput * 22.0 + kotlin.math.sin(System.currentTimeMillis() / 180.0) * 5.0).toFloat()
 
                     // C. Main Dashboard Panel and Car-Model Specific Styling
-                    when (carConfig.carModelIndex) {
-                        0 -> { // ВАЗ-2106 «Шоха»
+                    val interiorModel = com.example.data.model.CarCatalog.models.getOrNull(carConfig.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+                    when (interiorModel.interiorType) {
+                        0 -> { // Retro VAZ style interior
                             // Draw primary black vintage vinyl console base
                             drawRect(
                                 color = Color(0xFF1A1A1A),
@@ -1041,7 +1043,7 @@ fun GameScreen(
                                 drawCircle(color = Color.White, radius = 6f, center = Offset(wheelCX, wheelCY))
                             }
                         }
-                        1 -> { // ВАЗ-2114 «Четырка»
+                        1 -> { // Modern Hybrid VAZ interior
                             // Main grey plastic blocky cockpit console
                             drawRect(
                                 color = Color(0xFF27272A), // Dark slate zinc grey
@@ -1119,7 +1121,7 @@ fun GameScreen(
                                 drawCircle(color = Color(0xFF27272A), radius = 26f, center = Offset(wheelCX, wheelCY))
                             }
                         }
-                        2 -> { // LADA Priora «Сликер»
+                        2 -> { // Premium LADA/Carbon interior
                             // Matte dark executive carbon cockpit console
                             drawRect(
                                 color = Color(0xFF18181B),
@@ -1173,7 +1175,7 @@ fun GameScreen(
                                 drawCircle(color = Color(0xFFCBD5E1), radius = 6f, center = Offset(wheelCX, wheelCY), style = Stroke(width = 1.5f))
                             }
                         }
-                        3 -> { // КАМАЗ-54115 «Громобой»
+                        3 -> { // Heavy truck/KAMAZ interior
                             // High heavy iron dashboard console
                             drawRect(
                                 color = Color(0xFF451A03),
@@ -1228,7 +1230,7 @@ fun GameScreen(
                                 drawRect(color = Color(0xFF1E293B), topLeft = Offset(wheelCX - 22f, wheelCY - 14f), size = Size(44f, 28f))
                             }
                         }
-                        4 -> { // BMW E34 «Бумер ОПГ»
+                        4 -> { // Premium Foreign/BMW Sport interior
                             val tiltDashPath = Path().apply {
                                 moveTo(0f, dashTopY)
                                 lineTo(viewW, dashTopY + 12f)
@@ -1987,7 +1989,8 @@ fun GameScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        pText(text = "ЦЕЛОСТНОСТЬ ВАЗА", fontSize = 8.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        val currentCarObj = com.example.data.model.CarCatalog.models.getOrNull(carConfig.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+                        pText(text = "ПРОЧНОСТЬ ${currentCarObj.name.uppercase()}", fontSize = 8.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         pText(
                             text = "${state.playerHealth.toInt()}%",
                             fontSize = 8.sp,

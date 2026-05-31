@@ -37,6 +37,7 @@ fun TuningScreen(
     onBackToMenu: () -> Unit
 ) {
     val config by viewModel.carConfigState.collectAsState()
+    val garageCategory = remember { mutableStateOf(0) } // 0 = ВСЕ, 1 = СССР/РФ, 2 = ИНОМАРКИ, 3 = ТЯЖЕЛЫЕ
 
     // Vibrant Palette Theme Colors
     val slateBG = Color(0xFF0F172A)
@@ -193,65 +194,66 @@ fun TuningScreen(
                                 )
                             }
 
-                            // Dynamic Car Body drawing paths
-                            val carBrushColor = Color(config.carColor)
-                            val carOutlinePath = Path().apply {
-                                when (config.carModelIndex) {
-                                    3 -> { // КАМАЗ (Heavy boxy cab-over truck outline!)
-                                        moveTo(w * 0.15f, h * 0.72f) // bottom rear floor
-                                        lineTo(w * 0.15f, h * 0.15f) // heavy container top rear
-                                        lineTo(w * 0.60f, h * 0.15f) // heavy container top front
-                                        lineTo(w * 0.60f, h * 0.32f) // back of cabin drop
-                                        lineTo(w * 0.86f, h * 0.32f) // truck high cabin top
-                                        lineTo(w * 0.86f, h * 0.72f) // vertical flat truck front grill
-                                        close()
-                                    }
-                                    0 -> { // ВАЗ-2106 (Sedan classic)
-                                        moveTo(w * 0.15f, h * 0.68f) // rear floor
-                                        lineTo(w * 0.15f, h * 0.50f) // trunk start
-                                        lineTo(w * 0.30f, h * 0.50f) // hood/trunk line
-                                        lineTo(w * 0.40f, h * 0.35f) // rear glass window pitch
-                                        lineTo(w * 0.64f, h * 0.35f) // flat roof
-                                        lineTo(w * 0.72f, h * 0.50f) // windshield pitch
-                                        lineTo(w * 0.86f, h * 0.50f) // flat vertical front hood
-                                        lineTo(w * 0.86f, h * 0.68f) // front bumper
-                                        close()
-                                    }
-                                    2 -> { // Lada Priora (Slammed modern low profile sedan)
-                                        moveTo(w * 0.13f, h * 0.73f) // slammed low floor
-                                        lineTo(w * 0.15f, h * 0.53f) // low trunk
-                                        lineTo(w * 0.32f, h * 0.53f) 
-                                        lineTo(w * 0.43f, h * 0.33f) // sleek cabin
-                                        lineTo(w * 0.63f, h * 0.33f) // roof
-                                        lineTo(w * 0.74f, h * 0.51f) // windscreen
-                                        lineTo(w * 0.87f, h * 0.71f) // low hood
-                                        lineTo(w * 0.87f, h * 0.73f) // slammed bumper
-                                        close()
-                                    }
-                                    4 -> { // BMW E34 (Sleek bandit sport sedan, aggressive front nose)
-                                        moveTo(w * 0.14f, h * 0.68f)
-                                        lineTo(w * 0.16f, h * 0.48f) // wing
-                                        lineTo(w * 0.33f, h * 0.48f) // trunk
-                                        lineTo(w * 0.42f, h * 0.29f) // lean screen
-                                        lineTo(w * 0.63f, h * 0.29f) // low roof
-                                        lineTo(w * 0.72f, h * 0.46f) // sloped front screen
-                                        lineTo(w * 0.84f, h * 0.46f) // long hood
-                                        lineTo(w * 0.86f, h * 0.50f) // double kidney grill nose tilt
-                                        lineTo(w * 0.86f, h * 0.68f) // chin spoiler
-                                        close()
-                                    }
-                                    else -> { // ВАЗ-2114 Hatchback default
-                                        moveTo(w * 0.15f, h * 0.68f)
-                                        lineTo(w * 0.24f, h * 0.42f) // steep hatchback tail
-                                        lineTo(w * 0.42f, h * 0.30f) // cabin flat roof
-                                        lineTo(w * 0.62f, h * 0.30f)
-                                        lineTo(w * 0.73f, h * 0.50f) // windshield
-                                        lineTo(w * 0.86f, h * 0.52f) // hood
-                                        lineTo(w * 0.86f, h * 0.68f) // front bumper
-                                        close()
-                                    }
-                                }
-                            }
+                             // Dynamic Car Body drawing paths
+                             val model = com.example.data.model.CarCatalog.models.getOrNull(config.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
+                             val carBrushColor = Color(config.carColor)
+                             val carOutlinePath = Path().apply {
+                                 when (model.interiorType) {
+                                     3 -> { // КАМАЗ / Heavy boxy cab-over truck outline!
+                                         moveTo(w * 0.15f, h * 0.72f) // bottom rear floor
+                                         lineTo(w * 0.15f, h * 0.15f) // heavy container top rear
+                                         lineTo(w * 0.60f, h * 0.15f) // heavy container top front
+                                         lineTo(w * 0.60f, h * 0.32f) // back of cabin drop
+                                         lineTo(w * 0.86f, h * 0.32f) // truck high cabin top
+                                         lineTo(w * 0.86f, h * 0.72f) // vertical flat truck front grill
+                                         close()
+                                     }
+                                     0 -> { // ВАЗ-2106 (Sedan classic)
+                                         moveTo(w * 0.15f, h * 0.68f) // rear floor
+                                         lineTo(w * 0.15f, h * 0.50f) // trunk start
+                                         lineTo(w * 0.30f, h * 0.50f) // hood/trunk line
+                                         lineTo(w * 0.40f, h * 0.35f) // rear glass window pitch
+                                         lineTo(w * 0.64f, h * 0.35f) // flat roof
+                                         lineTo(w * 0.72f, h * 0.50f) // windshield pitch
+                                         lineTo(w * 0.86f, h * 0.50f) // flat vertical front hood
+                                         lineTo(w * 0.86f, h * 0.68f) // front bumper
+                                         close()
+                                     }
+                                     2 -> { // Lada Priora (Slammed modern low profile sedan)
+                                         moveTo(w * 0.13f, h * 0.73f) // slammed low floor
+                                         lineTo(w * 0.15f, h * 0.53f) // low trunk
+                                         lineTo(w * 0.32f, h * 0.53f) 
+                                         lineTo(w * 0.43f, h * 0.33f) // sleek cabin
+                                         lineTo(w * 0.63f, h * 0.33f) // roof
+                                         lineTo(w * 0.74f, h * 0.51f) // windscreen
+                                         lineTo(w * 0.87f, h * 0.71f) // low hood
+                                         lineTo(w * 0.87f, h * 0.73f) // slammed bumper
+                                         close()
+                                     }
+                                     4 -> { // BMW E34 / Foreign Sport (Sleek bandit sport sedan, aggressive front nose)
+                                         moveTo(w * 0.14f, h * 0.68f)
+                                         lineTo(w * 0.16f, h * 0.48f) // wing
+                                         lineTo(w * 0.33f, h * 0.48f) // trunk
+                                         lineTo(w * 0.42f, h * 0.29f) // lean screen
+                                         lineTo(w * 0.63f, h * 0.29f) // low roof
+                                         lineTo(w * 0.72f, h * 0.46f) // sloped front screen
+                                         lineTo(w * 0.84f, h * 0.46f) // long hood
+                                         lineTo(w * 0.86f, h * 0.50f) // double kidney grill nose tilt
+                                         lineTo(w * 0.86f, h * 0.68f) // chin spoiler
+                                         close()
+                                     }
+                                     else -> { // ВАЗ-2114 Hatchback default
+                                         moveTo(w * 0.15f, h * 0.68f)
+                                         lineTo(w * 0.24f, h * 0.42f) // steep hatchback tail
+                                         lineTo(w * 0.42f, h * 0.30f) // cabin flat roof
+                                         lineTo(w * 0.62f, h * 0.30f)
+                                         lineTo(w * 0.73f, h * 0.50f) // windshield
+                                         lineTo(w * 0.86f, h * 0.52f) // hood
+                                         lineTo(w * 0.86f, h * 0.68f) // front bumper
+                                         close()
+                                     }
+                                 }
+                             }
 
                             // Draw Neon Green Underglow glowing reflection if equipped!
                             if (config.neonUnderglow) {
@@ -370,16 +372,50 @@ fun TuningScreen(
                             letterSpacing = 1.0.sp
                         )
 
-                        // Car catalog: Triple(Model name, price in rubles, description)
-                        val carModels = listOf(
-                            Triple("ВАЗ-2106 «Шоха»", 0, "Легендарная советская классика. Задний привод."),
-                            Triple("ВАЗ-2114 «Четырка»", 120000, "Дерзкий пацанский хэтчбек. Бодрая передняя тяга."),
-                            Triple("LADA Priora «Сликер»", 350000, "Пневмоподвеска опущенная в пол, ксенон."),
-                            Triple("КАМАЗ-54115 «Громобой»", 1800000, "Сверхтяжёлый 3D грузовик! Легко таранит ДПС."),
-                            Triple("BMW E34 «Бумер ОПГ»", 4000000, "Бандитский спорт-седан. Максимальная скорость и заносы.")
-                        )
+                        // 3. Category Filter Chips (СРРФ / Иномарки / Тяжёлые / Все)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val categories = listOf("ВСЕ", "СССР / РФ", "ИНОМАРКИ", "ТЯЖЁЛЫЕ")
+                            categories.forEachIndexed { catIdx, label ->
+                                val isCatSelected = garageCategory.value == catIdx
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isCatSelected) greenNeon.copy(alpha = 0.25f) else Color(0xFF0F172A))
+                                        .border(1.dp, if (isCatSelected) greenNeon else Color(0xFF334155), RoundedCornerShape(8.dp))
+                                        .clickable { garageCategory.value = catIdx }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    pText(
+                                        text = label,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCatSelected) greenNeon else Color.White
+                                    )
+                                }
+                            }
+                        }
 
-                        carModels.forEachIndexed { carIdx, (name, price, desc) ->
+                        // Use the global CarCatalog containing exactly 52 cars!
+                        val displayedCarsWithIndex = com.example.data.model.CarCatalog.models.mapIndexed { index, model -> index to model }
+                            .filter { (carIdx, model) ->
+                                when (garageCategory.value) {
+                                    1 -> (carIdx in 0..18) || (carIdx in 27..38)
+                                    2 -> (carIdx in 19..26) || (carIdx in 39..51)
+                                    3 -> model.interiorType == 3
+                                    else -> true
+                                }
+                            }
+
+                        displayedCarsWithIndex.forEach { (carIdx, model) ->
+                            val name = model.name
+                            val price = model.price
+                            val desc = model.description
+                            
                             val isSelected = config.carModelIndex == carIdx
                             val canAfford = config.cash >= price
 
@@ -397,8 +433,7 @@ fun TuningScreen(
                                         } else if (canAfford) {
                                             viewModel.purchaseCarModel(carIdx, price)
                                         } else {
-                                            // Simply select directly if it's already bought or cheat
-                                            // (To make it responsive and easy, let them select directly or buy)
+                                            // Simply allow select or buy
                                             viewModel.purchaseCarModel(carIdx, price)
                                         }
                                     }

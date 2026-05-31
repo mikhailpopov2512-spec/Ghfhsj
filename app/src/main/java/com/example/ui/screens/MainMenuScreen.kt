@@ -1272,6 +1272,154 @@ fun MainMenuScreen(
                         }
                     }
 
+                    // SECTION 8.5: GRAPHICS CONFIG & WORLD SCALE
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "> ТЮНИНГ ГРАФИКИ (КАЧЕСТВО: ${carConfig.graphicsQuality})",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF38BDF8),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf("LOW", "MEDIUM", "HIGH").forEach { q ->
+                                        val isActive = carConfig.graphicsQuality == q
+                                        val label = when(q) {
+                                            "LOW" -> "Быстродействие (Низ.)"
+                                            "MEDIUM" -> "Стандарт (Ср.)"
+                                            else -> "Максимум (Выс.)"
+                                        }
+                                        Button(
+                                            onClick = { viewModel?.adminSetGraphicsQuality(q); adminTrigger++ },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isActive) Color(0xFF0284C7) else Color(0xFF27272A)
+                                            ),
+                                            modifier = Modifier.weight(1f).height(32.dp),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(text = label, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Text(
+                                    text = "> ГЕОЛОГИЧЕСКИЙ РАЗМЕР КАРТЫ",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF34D399),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    listOf("NORMAL", "BIG", "ULTRA").forEach { sz ->
+                                        val isActive = carConfig.mapSizeSetting == sz
+                                        val label = when(sz) {
+                                            "NORMAL" -> "2.5 км (Быстро)"
+                                            "BIG" -> "4.5 км (Мид)"
+                                            else -> "6.5 км (Огромная!)"
+                                        }
+                                        Button(
+                                            onClick = { viewModel?.adminSetMapSizeSetting(sz); adminTrigger++ },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isActive) Color(0xFF10B981) else Color(0xFF27272A)
+                                            ),
+                                            modifier = Modifier.weight(1f).height(32.dp),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text(text = label, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 8.7: SIM-DONATE CENTER & SUPREME VIP FULL CONTROL
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF070B13)),
+                            border = BorderStroke(2.dp, Color(0xFFD946EF)), // Beautiful Magenta Neon Border!
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = "⚡ ИНТЕГРИРОВАННЫЙ ДОНАТ-ЦЕНТР & VIP ⚡",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFF472B6),
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1.2f)) {
+                                        Text("Делюкс VIP-Статус", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text("Дополнительный доход и бесплатное топливо", fontSize = 8.sp, color = Color.Gray)
+                                    }
+                                    Button(
+                                        onClick = { viewModel?.adminToggleVipStatus(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (carConfig.hasVipStatus) Color(0xFFD946EF) else Color(0xFF27272A)
+                                        ),
+                                        modifier = Modifier.weight(0.8f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(
+                                            text = if (carConfig.hasVipStatus) "АКТИВЕН ✓" else "АКТИВИРОВАТЬ",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1.2f)) {
+                                        Text("🔥 ПОЛНОЕ УПРАВЛЕНИЕ АДМИНА", fontSize = 10.sp, color = Color(0xFFF43F5E), fontWeight = FontWeight.Black)
+                                        Text("Сверхсила, бессмертие, АК-74, RPG, бесконечный огонь", fontSize = 8.sp, color = Color.Gray)
+                                    }
+                                    Button(
+                                        onClick = { viewModel?.adminToggleFullControl(); adminTrigger++ },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (carConfig.hasFullAdminControl) Color(0xFFE11D48) else Color(0xFF27272A)
+                                        ),
+                                        modifier = Modifier.weight(0.8f).height(32.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                        Text(
+                                            text = if (carConfig.hasFullAdminControl) "УПРАВЛЕНИЕ ✓" else "ВКЛЮЧИТЬ",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // SECTION 9: RANKS & SYSTEM SAVES
                     item {
                         Row(
