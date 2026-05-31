@@ -178,6 +178,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Map division is 5x5 sectors centered around coordinates
         // Avenues are located at multiples of 800.
         obstacles.clear()
+        
+        // Spawn standard structural buildings & blocks
         for (i in 0..4) {
             for (j in 0..4) {
                 val blockCenterX = i * 800.0 + 400.0
@@ -241,6 +243,61 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
+            }
+        }
+
+        // Spawn roadside forests, gardens, and birch tree alleys on open yards
+        for (gx in 1..4) {
+            for (gy in 1..4) {
+                val grassX = gx * 800.0
+                val grassY = gy * 800.0
+                
+                // Do not spawn trees right over the player's initial spawning area (2000, 2000)
+                if (abs(grassX - 2000.0) < 180.0 && abs(grassY - 2000.0) < 180.0) {
+                    continue
+                }
+
+                // Random clump of 4 thick 3D trees per yard block
+                obstacles.add(
+                    Obstacle(
+                        Rect(
+                            (grassX - 150.0).toFloat(),
+                            (grassY - 150.0).toFloat(),
+                            (grassX - 110.0).toFloat(),
+                            (grassY - 110.0).toFloat()
+                        ), ObstacleType.TREE, "Русская Березка"
+                    )
+                )
+                obstacles.add(
+                    Obstacle(
+                        Rect(
+                            (grassX + 140.0).toFloat(),
+                            (grassY - 130.0).toFloat(),
+                            (grassX + 180.0).toFloat(),
+                            (grassY - 90.0).toFloat()
+                        ), ObstacleType.TREE, "Таежная Ель"
+                    )
+                )
+                obstacles.add(
+                    Obstacle(
+                        Rect(
+                            (grassX - 130.0).toFloat(),
+                            (grassY + 140.0).toFloat(),
+                            (grassX - 90.0).toFloat(),
+                            (grassY + 180.0).toFloat()
+                        ), ObstacleType.TREE, "Русская Березка"
+                    )
+                )
+                obstacles.add(
+                    Obstacle(
+                        Rect(
+                            (grassX + 120.0).toFloat(),
+                            (grassY + 130.0).toFloat(),
+                            (grassX + 160.0).toFloat(),
+                            (grassY + 170.0).toFloat()
+                        ), ObstacleType.TREE, "Таежная Ель"
+                    )
+                )
             }
         }
     }

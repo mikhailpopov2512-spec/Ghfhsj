@@ -402,6 +402,71 @@ fun GameScreen(
                                 strokeWidth = 1.5f
                             )
                         }
+                    } else if (obs.type == ObstacleType.TREE) {
+                        // Draw beautiful 3D Siberian Pine or Russian Birch!
+                        val tx = (obs.rect.left + obs.rect.right) / 2.0
+                        val ty = (obs.rect.top + obs.rect.bottom) / 2.0
+                        
+                        val isBirch = obs.name.contains("Березка")
+                        
+                        // Dimensions setup
+                        val trunkHeight = if (isBirch) 30.0 else 24.0
+                        val crownHeight1 = if (isBirch) 56.0 else 46.0
+                        val crownHeight2 = if (isBirch) 78.0 else 66.0
+                        
+                        val basePt = projectGround(tx, ty, 0.0)
+                        val midPt = projectGround(tx, ty, trunkHeight)
+                        val topPt = projectGround(tx, ty, crownHeight1)
+                        val peakPt = projectGround(tx, ty, crownHeight2)
+                        
+                        if (basePt != null && midPt != null) {
+                            val distZ = (tx - px) * kotlin.math.cos(pAngle) + (ty - py) * kotlin.math.sin(pAngle) + D_behind
+                            if (distZ > 5.0) {
+                                val trunkW = (if (isBirch) 3.5f else 5.2f) * F / distZ.toFloat()
+                                val crownR1 = (if (isBirch) 22.0f else 26.0f) * F / distZ.toFloat()
+                                val crownR2 = (if (isBirch) 14.0f else 17.0f) * F / distZ.toFloat()
+                                
+                                // Draw tree trunk
+                                drawLine(
+                                    color = if (isBirch) Color.White else Color(0xFF78350F), // white bark for birch, dark trunk for pine
+                                    start = basePt,
+                                    end = midPt,
+                                    strokeWidth = trunkW.coerceIn(1.5f, 25f)
+                                )
+                                
+                                // Decorative birch black stripes
+                                if (isBirch) {
+                                    val stripeStep = (midPt.y - basePt.y) / 4.0f
+                                    for (stepIdx in 1..3) {
+                                        val sy = basePt.y + stripeStep * stepIdx
+                                        drawLine(
+                                            color = Color.Black,
+                                            start = Offset(basePt.x - trunkW * 0.44f, sy),
+                                            end = Offset(basePt.x + trunkW * 0.44f, sy),
+                                            strokeWidth = 1.5f
+                                        )
+                                    }
+                                }
+                                
+                                // Draw lower foliage level
+                                if (topPt != null) {
+                                    drawCircle(
+                                        color = if (isBirch) Color(0xFF22C55E) else Color(0xFF14532D), // Birch: bright green, Pine: deep forest pine green
+                                        radius = crownR1.coerceIn(3.0f, 130.0f),
+                                        center = topPt
+                                    )
+                                }
+                                
+                                // Draw upper foliage level
+                                if (peakPt != null) {
+                                    drawCircle(
+                                        color = if (isBirch) Color(0xFF4ADE80) else Color(0xFF16A34A), // Birch: lime green, Pine: pure green
+                                        radius = crownR2.coerceIn(2.0f, 95.0f),
+                                        center = peakPt
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         // Render 3D solid box building!
                         val l = obs.rect.left.toDouble()
@@ -942,6 +1007,26 @@ fun GameScreen(
                                     style = Stroke(width = 4f)
                                 )
                             }
+                            ObstacleType.TREE -> {
+                                val tx = (obs.rect.left + obs.rect.right) / 2f
+                                val ty = (obs.rect.top + obs.rect.bottom) / 2f
+                                // Draw double layered green circle cluster
+                                drawCircle(
+                                    color = Color(0xFF14532D),
+                                    radius = 18f,
+                                    center = Offset(tx, ty)
+                                )
+                                drawCircle(
+                                    color = Color(0xFF22C55E),
+                                    radius = 11f,
+                                    center = Offset(tx, ty)
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = 3f,
+                                    center = Offset(tx, ty)
+                                )
+                            }
                             else -> {}
                         }
                     }
@@ -1189,19 +1274,20 @@ fun GameScreen(
                         pText(text = "КОНЦЕДИРОВАТЬ", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
                     }
 
-                    Button(
-                        onClick = { is3DView = !is3DView },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (is3DView) greenNeon.copy(alpha = 0.9f) else slateCard),
-                        border = BorderStroke(1.dp, if (is3DView) Color(0xFF22C55E) else Color(0xFF334155)),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        modifier = Modifier.height(38.dp)
+                    Box(
+                        modifier = Modifier
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF10B981).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF10B981), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         pText(
-                            text = if (is3DView) "КАМЕРА: 3D" else "КАМЕРА: 2D",
+                            text = "РЕЖИМ: ПОЛНОЕ 3D 🔥",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (is3DView) Color.Black else Color.White
+                            color = Color(0xFF10B981)
                         )
                     }
                 }
