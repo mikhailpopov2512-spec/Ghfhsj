@@ -27,6 +27,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import com.example.R
@@ -77,48 +81,232 @@ fun MainMenuScreen(
     var adminEntranceUser by remember { mutableStateOf("mikha_q") }
     var adminEntrancePass by remember { mutableStateOf("") }
 
+    val context = LocalContext.current
+    var showRulesDialog by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070A13)) // High-fidelity dark premium cyber navy
-            .drawBehind {
-                // Diagonal ambient laser neon line decoration in background
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF1D4ED8).copy(alpha = 0.22f), Color.Transparent),
-                        center = Offset(size.width * 0.1f, size.height * 0.3f),
-                        radius = size.width * 0.8f
+            .background(Color(0xFF070A13))
+    ) {
+        // Full bleed realistic garage main background
+        Image(
+            painter = painterResource(id = R.drawable.img_launcher_mainbg_1780741320540),
+            contentDescription = "Black Russia Garage Splash Background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Premium Darkened Vignette Gradient Overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.25f),
+                            Color.Black.copy(alpha = 0.45f),
+                            Color.Black.copy(alpha = 0.65f)
+                        )
                     )
                 )
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFFEF4444).copy(alpha = 0.15f), Color.Transparent),
-                        center = Offset(size.width * 0.8f, size.height * 0.8f),
-                        radius = size.width * 0.7f
+        )
+
+        // 1. TOP LEFT CORNER: Nickname editor / display & Rules informational red button
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 20.dp, top = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Elegant thin-outlined italic/slanted nickname editor box (matches reference screenshot exactly)
+            Box(
+                modifier = Modifier
+                    .width(185.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0x33000000))
+                    .border(
+                        BorderStroke(1.2.dp, Color.White),
+                        RoundedCornerShape(6.dp)
                     )
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                BasicTextField(
+                    value = tempNickname,
+                    onValueChange = {
+                        tempNickname = it
+                        viewModel?.updateNickname(it)
+                    },
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center
+                    ),
+                    cursorBrush = SolidColor(Color.White),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
-    ) {
-        // Floating Top Corner Access Button (Admin Console trigger)
+
+            // Red Info Square Button (matches 'i' exactly!)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFFEF4444), Color(0xFFC2410C))
+                        )
+                    )
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.5f)), RoundedCornerShape(6.dp))
+                    .clickable { showRulesDialog = true }
+                    .testTag("info_rules_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "i", // lower case italic i
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
+        }
+
+        // 2. PROFILE & SERVER ONLINE STATISTIC BAR (Sleek Glassmorphic Floating Panel)
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 20.dp, top = 76.dp)
+                .width(285.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xD90A0E1A)) // Premium dark slate glass
+                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(14.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Pulsing green dot
+                    val pulseScaleAnim by rememberInfiniteTransition(label = "pulse").animateFloat(
+                        initialValue = 0.8f,
+                        targetValue = 1.2f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(800, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "onlineDot"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .graphicsLayer(scaleX = pulseScaleAnim, scaleY = pulseScaleAnim)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF10B981))
+                    )
+                    Text(
+                        text = "СЕРВЕР 1: СИБИРЬ [ONLINE]",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Text(
+                    text = "843 / 1000",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981),
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            // Fake online progress bar
+            LinearProgressIndicator(
+                progress = { 0.843f },
+                color = Color(0xFF3B82F6),
+                trackColor = Color(0xFF1E293B),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+            )
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 1.dp)
+
+            // Balance cash & Level row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "БАЛАНС ОПЕРАТОРА",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(text = "₽", color = Color(0xFF10B981), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                        Text(
+                            text = String.format(" %,d", carConfig.cash),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "КРИМИНАЛЬНЫЙ РАНГ",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "Ур. ${carConfig.level} | ${currentRank.title.uppercase()}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFE2E8F0),
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        // 3. TOP RIGHT / EDGE: Secure entry to DPS / ADMIN dashboard
         val isAdminSelected = carConfig.nickname == "mikha_q"
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 16.dp, end = 16.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .padding(top = 20.dp, end = 20.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(
                     if (isAdminSelected) {
                         Brush.linearGradient(colors = listOf(Color(0xFFDC2626), Color(0xFFD97706)))
                     } else {
-                        Brush.linearGradient(colors = listOf(Color(0xFF1E293B).copy(alpha = 0.9f), Color(0xFF0F172A).copy(alpha = 0.9f)))
+                        Brush.linearGradient(colors = listOf(Color(0xFF1E293B).copy(alpha = 0.85f), Color(0xFF0F172A).copy(alpha = 0.85f)))
                     }
                 )
                 .border(
-                    width = 1.5.dp,
-                    color = if (isAdminSelected) Color(0xFFFACC15) else Color(0xFF334155),
-                    shape = RoundedCornerShape(12.dp)
+                    width = 1.dp,
+                    color = if (isAdminSelected) Color(0xFFFACC15) else Color(0xFF475569),
+                    shape = RoundedCornerShape(8.dp)
                 )
                 .clickable {
                     if (isAdminSelected) {
@@ -127,7 +315,7 @@ fun MainMenuScreen(
                         showAdminEntranceDialog = true
                     }
                 }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             contentAlignment = Alignment.Center
         ) {
             Row(
@@ -138,11 +326,11 @@ fun MainMenuScreen(
                     imageVector = if (isAdminSelected) Icons.Filled.Star else Icons.Filled.Lock,
                     contentDescription = "Admin Area",
                     tint = if (isAdminSelected) Color.White else Color(0xFF10B981),
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(13.dp)
                 )
                 Text(
                     text = if (isAdminSelected) "👑 АДМИН-ЦЕНТР" else "🛡️ ВХОД ДПС",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     fontFamily = FontFamily.Monospace,
@@ -151,668 +339,282 @@ fun MainMenuScreen(
             }
         }
 
-        LazyColumn(
+        // 4. RIGHT EDGE COLUMN: Social stack (Telegram, Discord, VK)
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .align(Alignment.CenterEnd)
+                .padding(end = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            
-            // 1. Premium 3D Widescreen Cinematic Header Image Banner
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.5.dp, Color(0xFF3B82F6).copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = painterResource(id = R.drawable.img_launcher_banner_1780738067273),
-                            contentDescription = "3D Drift Lada Launcher Banner",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        // Gradient Overlay to blend text beautifully
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(Color.Transparent, Color(0x9E070A13), Color(0xFF070A13))
-                                    )
-                                )
-                        )
-                        
-                        // Game Titles overlapping the 3D art
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFFEF4444))
-                                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "3D СИБИРЬ",
-                                        color = Color.White,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Black,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                }
-                                Text(
-                                    text = "КРИМИНАЛЬНЫЙ СИМУЛЯТОР",
-                                    color = Color(0xFF10B981),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                            Text(
-                                text = "РОССИЯ 2024: НА ОКОЛИЦАХ",
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = (-0.5).sp
-                            )
-                        }
-                    }
-                }
+            // Telegram Button
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xE61E293B))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(10.dp))
+                    .clickable {
+                        Toast.makeText(context, "Подключение к Telegram сообществу Сибирь!", Toast.LENGTH_SHORT).show()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Send, // paper airplane style
+                    contentDescription = "Telegram Community",
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
-            // 2. Black Russia-style Server Online Status Widget (Siberia Drift)
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.2.dp, Color(0xFF1E293B)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Pulsing green online light indicator
-                                val scaleAnim by rememberInfiniteTransition(label = "pulse").animateFloat(
-                                    initialValue = 0.8f,
-                                    targetValue = 1.2f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(800, easing = LinearEasing),
-                                        repeatMode = RepeatMode.Reverse
-                                    ),
-                                    label = "onlineDot"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .graphicsLayer(scaleX = scaleAnim, scaleY = scaleAnim)
-                                        .clip(RoundedCornerShape(30.dp))
-                                        .background(Color(0xFF10B981))
-                                )
-                                Text(
-                                    text = "СЕРВЕР 1: СИБИРЬ ДРИФТ [ONLINE]",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 11.sp,
-                                    color = Color.White
-                                )
-                            }
-                            Text(
-                                text = "843 / 1000",
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
-                            )
-                        }
-                        
-                        // Fake player activity bar
-                        LinearProgressIndicator(
-                            progress = { 0.843f },
-                            color = Color(0xFF3B82F6),
-                            trackColor = Color(0xFF1E293B),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                        )
-                    }
-                }
+            // Discord Button
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xE61E293B))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(10.dp))
+                    .clickable {
+                        Toast.makeText(context, "Подключение к Discord голосовой рации!", Toast.LENGTH_SHORT).show()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Face, // matches gamer vibe
+                    contentDescription = "Discord Voice",
+                    tint = Color(0xFF818CF8),
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            // 3. Persistent Sleek Nickname Entry Bar (directly embedded, Black Russia Style)
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.2.dp, if (isAdminSelected) Color(0xFF10B981) else Color(0xFF1E293B)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "ИГРОВОЙ НИКНЕЙМ ОПЕРАТОРА",
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 10.sp,
-                            color = Color(0xFF64748B),
-                            letterSpacing = 1.sp
-                        )
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = tempNickname,
-                                onValueChange = {
-                                    tempNickname = it
-                                    viewModel?.updateNickname(it)
-                                },
-                                placeholder = { Text("Введи свой никнейм", color = Color(0xFF475569)) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFF3B82F6),
-                                    unfocusedBorderColor = Color(0xFF334155),
-                                    focusedContainerColor = Color(0xFF070A13),
-                                    unfocusedContainerColor = Color(0xFF070A13)
-                                ),
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f)
-                            )
-                            
-                            // Edit shortcut tag that quickly selects mikha_q
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFF3B82F6).copy(alpha = 0.15f))
-                                    .border(1.dp, Color(0xFF3B82F6).copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                                    .clickable {
-                                        tempNickname = "mikha_q"
-                                        viewModel?.updateNickname("mikha_q")
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "⚡ mikha_q",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF60A5FA),
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
+            // VK Button (Provides ₽10,000 cash for first connection!)
+            var vkBonusClaimed by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xE61E293B))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(10.dp))
+                    .clickable {
+                        if (!vkBonusClaimed) {
+                            vkBonusClaimed = true
+                            viewModel?.adminInjectCustomCash(10000)
+                            Toast.makeText(context, "🎉 Бонус за подписку ВК получен: +10,000₽!", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Вы уже подписаны на группу VK!", Toast.LENGTH_SHORT).show()
                         }
-                    }
-                }
-            }
-
-            // 4. Player Profile Info & Criminal XP
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.2.dp, Color(0xFF1E293B)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF1D4ED8).copy(alpha = 0.2f))
-                                        .border(1.dp, Color(0xFF3B82F6), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Person,
-                                        contentDescription = "User Badge",
-                                        tint = Color(0xFF60A5FA),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = carConfig.nickname,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "Уровень: ${carConfig.level}",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF60A5FA),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                            
-                            // High contrast status label
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(30.dp))
-                                    .background(Color(0xFFEF4444).copy(alpha = 0.15f))
-                                    .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f), RoundedCornerShape(30.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = currentRank.title.uppercase(),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color(0xFFEF4444)
-                                )
-                            }
-                        }
-
-                        // Progress gauge
-                        val expProgress = carConfig.experience.toFloat() / 100f
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Опыт: ${carConfig.experience}/100 XP",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                                Text(
-                                    text = "Ранг: $currentRank",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF3B82F6),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            LinearProgressIndicator(
-                                progress = { expProgress },
-                                color = Color(0xFF3B82F6),
-                                trackColor = Color(0xFF1E293B),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 5. Balance ruble meter and Personal High score
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF0F172A))
-                        .border(1.2.dp, Color(0xFF1E293B), RoundedCornerShape(16.dp))
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = "АКТИВНЫЙ БАЛАНС КЭША",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
-                            letterSpacing = 1.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "₽",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFF10B981)
-                            )
-                            Text(
-                                text = String.format("%,d", carConfig.cash),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = (-0.5).sp
-                            )
-                        }
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "РЕКОРД СПИДВЕЯ",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFD97706),
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = bestScore.toString(),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = "$totalRuns выездов",
-                            fontSize = 10.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-            }
-
-            // 6. Huge central play selector "ИГРАТЬ / НАЧАТЬ ВЫЕЗД" (Crimson pulsing, central launcher style)
-            item {
-                Button(
-                    onClick = onStartGame,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDC2626) // Deep warning red
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .testTag("play_game_button")
-                        .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = "Start game drive",
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "ПОДКЛЮЧИТЬСЯ И ИГРАТЬ",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = 1.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-
-            // 7. Grid Matrix elements: Tuning Garage & Donat shop
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Garage card button
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.2.dp, Color(0xFF2563EB)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                            .clickable { onNavigateToGarage() }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF2563EB).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Build,
-                                    contentDescription = "Garage icon",
-                                    tint = Color(0xFF60A5FA),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "ГАРАЖ",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Тюнинг Lada",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-
-                    // Shop item button
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.2.dp, Color(0xFF10B981)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                            .clickable { showDonatShop = true }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF10B981).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ShoppingCart,
-                                    contentDescription = "Shop icon",
-                                    tint = Color(0xFF34D399),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "ДОНАТ ШОП",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Оружие и ОПГ",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 8. Grid Matrix row 2: Achievements and simulator settings
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Stats card button
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.2.dp, Color(0xFFD97706)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                            .clickable { onNavigateToStats() }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFD97706).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = "Stats icon",
-                                    tint = Color(0xFFFBBF24),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "РЕПУТАЦИЯ",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Дела воров",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-
-                    // Settings card button
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.2.dp, Color(0xFF4F46E5)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(100.dp)
-                            .testTag("settings_screen_button")
-                            .clickable { onNavigateToSettings() }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF4F46E5).copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = "Settings icon",
-                                    tint = Color(0xFF818CF8),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "НАСТРОЙКИ",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Погода и ДПС",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Quick instruction rules card
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    border = BorderStroke(1.2.dp, Color(0xFF1E293B)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "КАК ВЫЖИТЬ В СИБИРИ ДПС СИМУЛЯТОРЕ",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            color = Color(0xFFEAB308),
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text("• Погода сильно влияет на шины! СНЕГ делает ВАЗ неуправляемым саням. ДОЖДЬ заставляет Ляду совать боком.", color = Color(0xFF94A3B8), fontSize = 11.sp, lineHeight = 15.sp)
-                        Text("• Прокачайте Оружие в Донат Меню (Макаров, АК-74у) чтобы стрелять по преследователям из тачки!", color = Color(0xFF94A3B8), fontSize = 11.sp, lineHeight = 15.sp)
-                        Text("• Привлекайте Семью (Братва). Каждый боец дает пассивные выплаты ₽ каждую секунду!", color = Color(0xFF94A3B8), fontSize = 11.sp, lineHeight = 15.sp)
-                        Text("• Ваш криминальный ранг Авторитета растет вместе с Уровнем. Стремитесь стать Паханом!", color = Color(0xFF94A3B8), fontSize = 11.sp, lineHeight = 15.sp)
-                    }
-                }
-                Spacer(modifier = Modifier.height(30.dp))
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                // Highly faithful style representing custom VK
+                Text(
+                    text = "VK",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF60A5FA),
+                    fontFamily = FontFamily.SansSerif
+                )
             }
         }
+
+        // 5. BOTTOM LEFT PILLS: Settings, Tuning Garage, Donat shop, and Achievements
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 20.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // "Настройки" Settings Button
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xE60F172A))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(14.dp))
+                    .clickable { onNavigateToSettings() }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .testTag("settings_screen_button"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "Settings",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Настройки",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // "Гараж" Garage tuning
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xE60F172A))
+                    .border(BorderStroke(1.2.dp, Color(0xFF3B82F6).copy(alpha = 0.4f)), RoundedCornerShape(14.dp))
+                    .clickable { onNavigateToGarage() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Build,
+                    contentDescription = "Garage tuning",
+                    tint = Color(0xFF60A5FA),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Гараж",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // "Донат" Shop
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xE60F172A))
+                    .border(BorderStroke(1.2.dp, Color(0xFF10B981).copy(alpha = 0.4f)), RoundedCornerShape(14.dp))
+                    .clickable { showDonatShop = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ShoppingCart,
+                    contentDescription = "Shop",
+                    tint = Color(0xFF34D399),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Донат Шоп",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // "Репутация" Stats
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xE60F172A))
+                    .border(BorderStroke(1.2.dp, Color(0xFFEAB308).copy(alpha = 0.4f)), RoundedCornerShape(14.dp))
+                    .clickable { onNavigateToStats() }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = "Stats",
+                    tint = Color(0xFFFBBF24),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Репутация",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // 6. BOTTOM CENTER BRANDING: Black Russia Logo
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                Text(
+                    text = "Black",
+                    color = Color(0xFFFF4500), // Brand Orange-Red
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-0.5).sp
+                )
+                Text(
+                    text = "Russia",
+                    color = Color.White,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-0.5).sp
+                )
+            }
+            Text(
+                text = "СИБИРСКИЙ КРИМИНАЛ",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 8.sp,
+                letterSpacing = 2.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        // 7. BOTTOM RIGHT CORNER: High-Contrast Crimson Gradient "ИГРАТЬ" Button (exact match!)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 20.dp)
+                .width(185.dp)
+                .height(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF881337), Color(0xFF4C0519)) // Deep rich maroon gradient
+                    )
+                )
+                .border(BorderStroke(1.5.dp, Color.White), RoundedCornerShape(8.dp))
+                .clickable { onStartGame() }
+                .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)
+                .testTag("play_game_button"),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Start game drive",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "ИГРАТЬ",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+            }
+        }
+
+        // 8. VERY BOTTOM LEFT EDGE: Build label (exact match!)
+        Text(
+            text = "Build 16.21.0",
+            color = Color.White.copy(alpha = 0.4f),
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 22.dp, bottom = 4.dp)
+        )
     }
 
     // ==========================================
