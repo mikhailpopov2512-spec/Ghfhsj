@@ -497,9 +497,19 @@ fun GameScreen(
 
                         // Define faces
                         val faces = mutableListOf<Triple<String, Double, List<Offset?>>>()
-                        // Roof face
-                        val roofCenterZ = ((l+r)/2 - px) * kotlin.math.cos(pAngle) + ((t+b)/2 - py) * kotlin.math.sin(pAngle) + D_behind
-                        faces.add(Triple("ROOF", roofCenterZ, listOf(t1, t2, t3, t4)))
+                        if (obs.name.contains("Хрущевка")) {
+                            // High-fidelity 3D peaked tiled roof instead of a flat concrete roof
+                            val peakPt = projectGround((l + r) / 2.0, (t + b) / 2.0, heightVal + 45.0)
+                            val roofCenterZ = ((l + r) / 2 - px) * kotlin.math.cos(pAngle) + ((t + b) / 2 - py) * kotlin.math.sin(pAngle) + D_behind
+                            faces.add(Triple("ROOF_NORTH", roofCenterZ + 1.0, listOf(t1, t2, peakPt)))
+                            faces.add(Triple("ROOF_EAST", roofCenterZ + 1.0, listOf(t2, t3, peakPt)))
+                            faces.add(Triple("ROOF_SOUTH", roofCenterZ + 1.0, listOf(t3, t4, peakPt)))
+                            faces.add(Triple("ROOF_WEST", roofCenterZ + 1.0, listOf(t4, t1, peakPt)))
+                        } else {
+                            // Roof face standard
+                            val roofCenterZ = ((l + r) / 2 - px) * kotlin.math.cos(pAngle) + ((t + b) / 2 - py) * kotlin.math.sin(pAngle) + D_behind
+                            faces.add(Triple("ROOF", roofCenterZ, listOf(t1, t2, t3, t4)))
+                        }
                         // Sides
                         faces.add(Triple("NORTH", wallNorthZ, listOf(b1, b2, t2, t1)))
                         faces.add(Triple("EAST", wallEastZ, listOf(b2, b3, t3, t2)))
@@ -514,54 +524,153 @@ fun GameScreen(
                                 val s1 = pts[0]!!
                                 val s2 = pts[1]!!
                                 val s3 = pts[2]!!
-                                val s4 = pts[3]!!
+                                val s4 = if (pts.size > 3) pts[3]!! else pts[2]!!
 
                                 val polyPath = Path().apply {
                                     moveTo(s1.x, s1.y)
                                     lineTo(s2.x, s2.y)
                                     lineTo(s3.x, s3.y)
-                                    lineTo(s4.x, s4.y)
+                                    if (pts.size > 3) {
+                                        lineTo(s4.x, s4.y)
+                                    }
                                     close()
                                 }
 
                                 val faceColor = when (faceName) {
                                     "ROOF" -> Color(0xFF1E293B)
+                                    "ROOF_NORTH" -> Color(0xFF9A3412) // Shaded rich terracotta tile
+                                    "ROOF_SOUTH" -> Color(0xFFC2410C) // Bright terracotta tile
+                                    "ROOF_EAST" -> Color(0xFFEA580C)  // Sidelit terracotta tile
+                                    "ROOF_WEST" -> Color(0xFF7C2D12)  // Deep shaded terracotta tile
                                     "NORTH", "SOUTH" -> buildingColorCode.copy(alpha = 0.95f)
                                     else -> buildingColorCode.copy(alpha = 0.82f)
                                 }
                                 drawPath(polyPath, faceColor)
 
-                                // Draw solid borders
+                                // Draw solid borders matching vertex size
                                 drawLine(color = Color(0xFF0F172A), start = s1, end = s2, strokeWidth = 2f)
                                 drawLine(color = Color(0xFF0F172A), start = s2, end = s3, strokeWidth = 2f)
-                                drawLine(color = Color(0xFF0F172A), start = s3, end = s4, strokeWidth = 2f)
-                                drawLine(color = Color(0xFF0F172A), start = s4, end = s1, strokeWidth = 2f)
+                                if (pts.size > 3) {
+                                    drawLine(color = Color(0xFF0F172A), start = s3, end = s4, strokeWidth = 2f)
+                                    drawLine(color = Color(0xFF0F172A), start = s4, end = s1, strokeWidth = 2f)
+                                } else {
+                                    drawLine(color = Color(0xFF0F172A), start = s3, end = s1, strokeWidth = 2f)
+                                }
 
-                                // Rows of windows
-                                if (faceName != "ROOF" && !obs.name.contains("Тюнинг-Про") && !obs.name.contains("Кооператив")) {
-                                    val columns = 4
-                                    val floors = if (obs.name.contains("9-Этажка")) 7 else 4
+                                // Interactive doors, garage metal rolls, and 3D-skewed windows
+                                if (!faceName.startsWith("ROOF")) {
+                                    val columns = if (obs.name.contains("Кооператив") || obs.name.contains("Тюнинг-Про")) 3 else 4
+                                    val floors = if (obs.name.contains("9-Этажка")) 7 else if (obs.name.contains("Кооператив") || obs.name.contains("Тюнинг-Про")) 1 else 4
                                     
+                                    // Helper function to interpolate face points for custom layouts
+                                    fun interp(xFrac: Float, yFrac: Float): Offset {
+                                        val bottomPt = Offset(s1.x + (s2.x - s1.x) * xFrac, s1.y + (s2.y - s1.y) * xFrac)
+                                        val topPt = Offset(s4.x + (s3.x - s4.x) * xFrac, s4.y + (s3.y - s4.y) * xFrac)
+                                        return Offset(bottomPt.x + (topPt.x - bottomPt.x) * yFrac, bottomPt.y + (topPt.y - bottomPt.y) * yFrac)
+                                    }
+
                                     for (col in 0 until columns) {
                                         for (flr in 0 until floors) {
-                                            val cxFrac1 = (col + 0.3f) / columns.toFloat()
-                                            val cxFrac2 = (col + 0.7f) / columns.toFloat()
-                                            val cyFrac1 = (flr + 0.3f) / floors.toFloat()
-                                            val cyFrac2 = (flr + 0.7f) / floors.toFloat()
+                                            if (obs.name.contains("Кооператив")) {
+                                                // Corrugated steel garage doors
+                                                val x1 = (col + 0.12f) / columns.toFloat()
+                                                val x2 = (col + 0.88f) / columns.toFloat()
+                                                val y1 = 0.05f
+                                                val y2 = 0.85f
 
-                                            val isLit = (col + flr + obs.rect.left.toInt() / 40) % 3 != 0
-                                            val winColor = if (isLit) Color(0xFFFEF08A).copy(alpha = 0.8f) else Color(0x7F1E293B)
+                                                val gp1 = interp(x1, y1)
+                                                val gp2 = interp(x2, y1)
+                                                val gp3 = interp(x2, y2)
+                                                val gp4 = interp(x1, y2)
 
-                                            val wx1 = s1.x + (s2.x - s1.x) * cxFrac1 + (s4.x - s1.x) * cyFrac1
-                                            val wy1 = s1.y + (s2.y - s1.y) * cxFrac1 + (s4.y - s1.y) * cyFrac1
-                                            val wx2 = s1.x + (s2.x - s1.x) * cxFrac2 + (s4.x - s1.x) * cyFrac2
-                                            val wy2 = s1.y + (s2.y - s1.y) * cxFrac2 + (s4.y - s1.y) * cyFrac2
+                                                val gatePath = Path().apply {
+                                                    moveTo(gp1.x, gp1.y)
+                                                    lineTo(gp2.x, gp2.y)
+                                                    lineTo(gp3.x, gp3.y)
+                                                    lineTo(gp4.x, gp4.y)
+                                                    close()
+                                                }
+                                                drawPath(gatePath, Color(0xFF64748B))
+                                                drawPath(gatePath, Color(0xFF1E293B), style = Stroke(width = 1.5f))
 
-                                            drawCircle(
-                                                color = winColor,
-                                                radius = maxOf(kotlin.math.abs(wx2 - wx1) * 0.3f, 1f),
-                                                center = Offset((wx1 + wx2)/2f, (wy1 + wy2)/2f)
-                                            )
+                                                // Corrugation marks
+                                                for (bar in 1..7) {
+                                                    val barFrac = y1 + (y2 - y1) * (bar / 8.0f)
+                                                    drawLine(
+                                                        color = Color(0xFF334155),
+                                                        start = interp(x1, barFrac),
+                                                        end = interp(x2, barFrac),
+                                                        strokeWidth = 1f
+                                                    )
+                                                }
+                                                // Lock handle latch
+                                                drawCircle(color = Color(0xFF0F172A), radius = 2.5f, center = interp((x1 + x2) / 2f, 0.15f))
+                                            } else if (obs.name.contains("Тюнинг-Про")) {
+                                                // High-tech workshop garage facade with neon cyan borders
+                                                val x1 = (col + 0.08f) / columns.toFloat()
+                                                val x2 = (col + 0.92f) / columns.toFloat()
+                                                val y1 = 0.05f
+                                                val y2 = 0.90f
+
+                                                val gp1 = interp(x1, y1)
+                                                val gp2 = interp(x2, y1)
+                                                val gp3 = interp(x2, y2)
+                                                val gp4 = interp(x1, y2)
+
+                                                val gatePath = Path().apply {
+                                                    moveTo(gp1.x, gp1.y)
+                                                    lineTo(gp2.x, gp2.y)
+                                                    lineTo(gp3.x, gp3.y)
+                                                    lineTo(gp4.x, gp4.y)
+                                                    close()
+                                                }
+                                                drawPath(gatePath, Color(0xFF0F172A))
+                                                drawPath(gatePath, Color(0xFF06B6D4), style = Stroke(width = 2f)) // cyan neon gate
+
+                                                // Cyber diagonals reflection lines
+                                                for (bar in 1..2) {
+                                                    val barFrac = y1 + (y2 - y1) * (bar / 3.0f)
+                                                    drawLine(
+                                                        color = Color(0xFF22D3EE).copy(alpha = 0.4f),
+                                                        start = interp(x1 + 0.05f, barFrac - 0.05f),
+                                                        end = interp(x2 - 0.05f, barFrac + 0.05f),
+                                                        strokeWidth = 1f
+                                                    )
+                                                }
+                                            } else {
+                                                // Beautiful rectangular window panes matching 3D perspective skew
+                                                val cxFrac1 = (col + 0.28f) / columns.toFloat()
+                                                val cxFrac2 = (col + 0.72f) / columns.toFloat()
+                                                val cyFrac1 = (flr + 0.25f) / floors.toFloat()
+                                                val cyFrac2 = (flr + 0.75f) / floors.toFloat()
+
+                                                val isLit = (col + flr + obs.rect.left.toInt() / 40) % 3 != 0
+                                                val winColor = if (isLit) Color(0xFFFEF08A).copy(alpha = 0.85f) else Color(0x901E293B)
+
+                                                val wp1 = interp(cxFrac1, cyFrac1)
+                                                val wp2 = interp(cxFrac2, cyFrac1)
+                                                val wp3 = interp(cxFrac2, cyFrac2)
+                                                val wp4 = interp(cxFrac1, cyFrac2)
+
+                                                val winPath = Path().apply {
+                                                    moveTo(wp1.x, wp1.y)
+                                                    lineTo(wp2.x, wp2.y)
+                                                    lineTo(wp3.x, wp3.y)
+                                                    lineTo(wp4.x, wp4.y)
+                                                    close()
+                                                }
+
+                                                drawPath(winPath, winColor)
+                                                drawPath(winPath, Color(0xFF0F172A), style = Stroke(width = 1.2f))
+
+                                                // Inner window cross
+                                                val midH1 = interp((cxFrac1 + cxFrac2) / 2f, cyFrac1)
+                                                val midH2 = interp((cxFrac1 + cxFrac2) / 2f, cyFrac2)
+                                                val midV1 = interp(cxFrac1, (cyFrac1 + cyFrac2) / 2f)
+                                                val midV2 = interp(cxFrac2, (cyFrac1 + cyFrac2) / 2f)
+                                                drawLine(color = Color(0xFF1E293B), start = midH1, end = midH2, strokeWidth = 0.8f)
+                                                drawLine(color = Color(0xFF1E293B), start = midV1, end = midV2, strokeWidth = 0.8f)
+                                            }
                                         }
                                     }
                                 }
@@ -963,13 +1072,42 @@ fun GameScreen(
                     // Sway multiplier for hanging toys based on steering momentum and continuous vibration
                     val swayDeg = (viewModel.steerInput * 22.0 + kotlin.math.sin(System.currentTimeMillis() / 180.0) * 5.0).toFloat()
 
+                    // Dynamic windscreen wiper functional movement
+                    val weatherActive = carConfig.targetWeather == "RAIN" || carConfig.targetWeather == "SNOW"
+                    val wiperAngle = if (weatherActive) {
+                        -10f - (kotlin.math.sin(System.currentTimeMillis() / 200.0).toFloat() * 55f + 55f)
+                    } else {
+                        -10f
+                    }
+                    val wiperLen = viewW * 0.23f
+                    val wiperLeftX = viewW * 0.28f
+                    val wiperLeftY = dashTopY + 3f
+                    val wiperRightX = viewW * 0.68f
+                    val wiperRightY = dashTopY + 3f
+
+                    // Draw left wiper
+                    rotate(degrees = wiperAngle, pivot = Offset(wiperLeftX, wiperLeftY)) {
+                        drawLine(color = Color(0xFF0F172A), start = Offset(wiperLeftX, wiperLeftY), end = Offset(wiperLeftX, wiperLeftY - wiperLen), strokeWidth = 4.5f)
+                        drawLine(color = Color(0xFF020617), start = Offset(wiperLeftX - 10f, wiperLeftY - wiperLen), end = Offset(wiperLeftX + 35f, wiperLeftY - wiperLen + 8f), strokeWidth = 6f)
+                    }
+                    // Draw right wiper
+                    rotate(degrees = wiperAngle, pivot = Offset(wiperRightX, wiperRightY)) {
+                        drawLine(color = Color(0xFF0F172A), start = Offset(wiperRightX, wiperRightY), end = Offset(wiperRightX, wiperRightY - wiperLen), strokeWidth = 4.5f)
+                        drawLine(color = Color(0xFF020617), start = Offset(wiperRightX - 10f, wiperRightY - wiperLen), end = Offset(wiperRightX + 35f, wiperRightY - wiperLen + 8f), strokeWidth = 6f)
+                    }
+
+                    // Flashing indicators trigger logic
+                    val bSgn = (System.currentTimeMillis() / 240L) % 2L == 0L
+                    val lTurnActive = bSgn && viewModel.steerInput < -0.15
+                    val rTurnActive = bSgn && viewModel.steerInput > 0.15
+
                     // C. Main Dashboard Panel and Car-Model Specific Styling
                     val interiorModel = com.example.data.model.CarCatalog.models.getOrNull(carConfig.carModelIndex) ?: com.example.data.model.CarCatalog.models[0]
                     when (interiorModel.interiorType) {
                         0 -> { // Retro VAZ style interior
                             // Draw primary black vintage vinyl console base
                             drawRect(
-                                color = Color(0xFF1A1A1A),
+                                color = Color(0xFF1E1E1E),
                                 topLeft = Offset(0f, dashTopY),
                                 size = Size(viewW, viewH - dashTopY)
                             )
@@ -986,38 +1124,57 @@ fun GameScreen(
                             // Retro Hanging Orthodox Icons ("Тройник икон") on the dash center top
                             val tX = viewW * 0.54f
                             val tY = dashTopY - 26f
-                            // Small wooden stand frame
                             drawRoundRect(color = Color(0xFF451A03), topLeft = Offset(tX - 35f, tY), size = Size(70f, 22f), cornerRadius = CornerRadius(4f,4f))
-                            // Three miniature golden icons side by side
                             drawRect(color = Color(0xFFF59E0B), topLeft = Offset(tX - 30f, tY + 3f), size = Size(16f, 16f))
                             drawRect(color = Color(0xFFF59E0B), topLeft = Offset(tX - 8f, tY + 3f), size = Size(16f, 16f))
                             drawRect(color = Color(0xFFF59E0B), topLeft = Offset(tX + 14f, tY + 3f), size = Size(16f, 16f))
-                            // Gold cross outlines
                             drawCircle(color = Color.Red, radius = 2f, center = Offset(tX - 22f, tY + 11f))
                             drawCircle(color = Color.Red, radius = 2f, center = Offset(tX, tY + 11f))
                             drawCircle(color = Color.Red, radius = 2f, center = Offset(tX + 22f, tY + 11f))
 
-                            // Large vintage circular Gauge Dials
+                            // Hanging plush retro fuzzy dice swinging!
+                            val diceX = rvmX - 25f
+                            val diceY = rvmY + rvmH / 2 + 12f
+                            rotate(degrees = swayDeg, pivot = Offset(diceX, diceY - 10f)) {
+                                drawLine(color = Color(0x99FFFFFF), start = Offset(diceX, diceY - 10f), end = Offset(diceX, diceY + 5f), strokeWidth = 2f)
+                                drawRoundRect(color = Color(0xFF10B981), topLeft = Offset(diceX - 12f, diceY + 5f), size = Size(24f, 24f), cornerRadius = CornerRadius(4f,4f))
+                                drawCircle(color = Color.White, radius = 2f, center = Offset(diceX - 6f, diceY + 10f))
+                                drawCircle(color = Color.White, radius = 2f, center = Offset(diceX + 6f, diceY + 10f))
+                                drawCircle(color = Color.White, radius = 2f, center = Offset(diceX, diceY + 17f))
+                                drawCircle(color = Color.White, radius = 2f, center = Offset(diceX - 6f, diceY + 23f))
+                                drawCircle(color = Color.White, radius = 2f, center = Offset(diceX + 6f, diceY + 23f))
+                            }
+
+                            // Classic AM Radio console tuner
+                            val rxX = viewW * 0.72f
+                            val rxY = dashTopY + 65f
+                            drawRoundRect(color = Color(0xFF111827), topLeft = Offset(rxX - 40f, rxY), size = Size(80f, 24f), cornerRadius = CornerRadius(3f,3f))
+                            drawRect(color = Color(0xFFF59E0B).copy(alpha = 0.3f), topLeft = Offset(rxX - 35f, rxY + 4f), size = Size(70f, 16f))
+                            // Radio dials
+                            drawLine(color = Color(0xFFEA580C), start = Offset(rxX - 30f + (System.currentTimeMillis() / 800f % 40L), rxY + 4f), end = Offset(rxX - 30f + (System.currentTimeMillis() / 800f % 40L), rxY + 20f), strokeWidth = 2f)
+
+                            // Speedometer
                             val sMeterCX = viewW * 0.22f
                             val dialCY = dashTopY + 95f
-                            // Speedometer Outer Chrome Outer
                             drawCircle(color = Color(0xFF94A3B8), radius = 48f, center = Offset(sMeterCX, dialCY))
                             drawCircle(color = Color.Black, radius = 44f, center = Offset(sMeterCX, dialCY))
-                            // Ticks
                             for (tIdx in 0..10) {
                                 val deg = -120f + tIdx * 24f
                                 rotate(degrees = deg, pivot = Offset(sMeterCX, dialCY)) {
                                     drawLine(color = Color.White, start = Offset(sMeterCX, dialCY - 42f), end = Offset(sMeterCX, dialCY - 34f), strokeWidth = 2f)
                                 }
                             }
-                            // Speed Needle rotation
                             val needleAngle = -120f + (state.playerSpeed.toFloat() / (viewModel.maxSpeed.toFloat() * 1.5f)) * 240f
                             rotate(degrees = needleAngle, pivot = Offset(sMeterCX, dialCY)) {
                                 drawLine(color = Color(0xFFEF4444), start = Offset(sMeterCX, dialCY), end = Offset(sMeterCX, dialCY - 39f), strokeWidth = 2.5f)
                             }
                             drawCircle(color = Color.White, radius = 4f, center = Offset(sMeterCX, dialCY))
 
-                            // Tachometer Outer Chrome Ring
+                            // Interactive Turn Signals on cluster
+                            drawCircle(color = if (lTurnActive) Color(0xFF22C55E) else Color(0x3314532D), radius = 6f, center = Offset(sMeterCX - 58f, dialCY))
+                            drawCircle(color = if (rTurnActive) Color(0xFF22C55E) else Color(0x3314532D), radius = 6f, center = Offset(sMeterCX + 58f, dialCY))
+
+                            // Tachometer
                             val tMeterCX = viewW * 0.40f
                             drawCircle(color = Color(0xFF94A3B8), radius = 44f, center = Offset(tMeterCX, dialCY))
                             drawCircle(color = Color.Black, radius = 40f, center = Offset(tMeterCX, dialCY))
@@ -1032,13 +1189,9 @@ fun GameScreen(
                             val wheelCY = viewH * 0.83f
                             val wRad = viewW * 0.17f
                             rotate(degrees = viewModel.steerInput.toFloat() * 62f, pivot = Offset(wheelCX, wheelCY)) {
-                                // Black outer ring
                                 drawCircle(color = Color(0xFF1E293B), radius = wRad, center = Offset(wheelCX, wheelCY), style = Stroke(width = 12f))
-                                // Chrome accents
                                 drawCircle(color = Color(0xFFCBD5E1), radius = wRad - 4f, center = Offset(wheelCX, wheelCY), style = Stroke(width = 2f))
-                                // Dual main horizontal spokes
                                 drawLine(color = Color(0xFF1E293B), start = Offset(wheelCX - wRad, wheelCY), end = Offset(wheelCX + wRad, wheelCY), strokeWidth = 10f)
-                                // Chrome horn button at the center
                                 drawCircle(color = Color(0xFF94A3B8), radius = 22f, center = Offset(wheelCX, wheelCY))
                                 drawCircle(color = Color.White, radius = 6f, center = Offset(wheelCX, wheelCY))
                             }
@@ -1046,20 +1199,19 @@ fun GameScreen(
                         1 -> { // Modern Hybrid VAZ interior
                             // Main grey plastic blocky cockpit console
                             drawRect(
-                                color = Color(0xFF27272A), // Dark slate zinc grey
+                                color = Color(0xFF27272A),
                                 topLeft = Offset(0f, dashTopY),
                                 size = Size(viewW, viewH - dashTopY)
                             )
                             // Combined meter dials box
                             drawRoundRect(
-                                color = Color(0xFF18181B),
+                                color = Color(0xFF111827),
                                 topLeft = Offset(viewW * 0.12f, dashTopY + 45f),
                                 size = Size(viewW * 0.38f, 100f),
-                                cornerRadius = CornerRadius(6f,6f)
+                                cornerRadius = CornerRadius(8f,8f)
                             )
-                            // Electronic digital speedometer display
+                            // Analog speedometer LEFT
                             val dialCY = dashTopY + 95f
-                            // Speedometer Circular meter left inside box
                             val sX = viewW * 0.22f
                             drawCircle(color = Color.Black, radius = 32f, center = Offset(sX, dialCY))
                             val speedNeedleAng = -120f + (state.playerSpeed.toFloat() / (viewModel.maxSpeed.toFloat() * 1.5f)) * 240f
@@ -1068,16 +1220,27 @@ fun GameScreen(
                             }
                             drawCircle(color = Color.White, radius = 3f, center = Offset(sX, dialCY))
 
+                            // Glowing green LCD trip computer in center console
+                            val tripX = viewW * 0.70f
+                            val tripY = dashTopY + 58f
+                            drawRoundRect(color = Color.Black, topLeft = Offset(tripX - 45f, tripY), size = Size(90f, 32f), cornerRadius = CornerRadius(4f,4f))
+                            drawRoundRect(color = Color(0x3322C55E), topLeft = Offset(tripX - 42f, tripY + 2f), size = Size(84f, 28f), cornerRadius = CornerRadius(3f,3f))
+                            // Tiny glowing bar details
+                            drawLine(color = Color(0xFF22C55E), start = Offset(tripX - 35f, tripY + 14f), end = Offset(tripX - 35f + (state.playerSpeed.toFloat() * 0.5f).coerceIn(0f, 65f),    tripY + 14f), strokeWidth = 4f)
+
+                            // Flashing turn indicators on computer box edges
+                            val indY = dashTopY + 55f
+                            drawCircle(color = if (lTurnActive) Color(0xFF22C55E) else Color(0x2215803D), radius = 5f, center = Offset(viewW * 0.15f, indY))
+                            drawCircle(color = if (rTurnActive) Color(0xFF22C55E) else Color(0x2215803D), radius = 5f, center = Offset(viewW * 0.47f, indY))
+
                             // Vintage neon green digital clock in center stack
                             val clockX = viewW * 0.58f
                             val clockY = dashTopY + 30f
                             drawRect(color = Color.Black, topLeft = Offset(clockX - 35f, clockY), size = Size(70f, 22f))
-                            // Mock green time "14:14"
                             drawRect(color = Color(0xFF22C55E).copy(alpha = 0.85f), topLeft = Offset(clockX - 25f, clockY + 4f), size = Size(10f, 3f))
                             drawRect(color = Color(0xFF22C55E).copy(alpha = 0.85f), topLeft = Offset(clockX - 25f, clockY + 7f), size = Size(3f, 10f))
                             drawRect(color = Color(0xFF22C55E).copy(alpha = 0.85f), topLeft = Offset(clockX - 15f, clockY + 4f), size = Size(10f, 3f))
                             drawRect(color = Color(0xFF22C55E).copy(alpha = 0.85f), topLeft = Offset(clockX - 15f, clockY + 7f), size = Size(3f, 10f))
-                            // Dots
                             drawCircle(color = Color(0xFF22C55E), radius = 2.2f, center = Offset(clockX, clockY + 8f))
                             drawCircle(color = Color(0xFF22C55E), radius = 2.2f, center = Offset(clockX, clockY + 14f))
                             
@@ -1085,9 +1248,7 @@ fun GameScreen(
                             val pineX = rvmX - 15f
                             val pineY = rvmY + rvmH / 2 + 10f
                             rotate(degrees = swayDeg, pivot = Offset(pineX, pineY - 8f)) {
-                                // Thread line
                                 drawLine(color = Color.White, start = Offset(pineX, pineY - 8f), end = Offset(pineX, pineY + 10f), strokeWidth = 1.5f)
-                                // Green pine leaves (triangles)
                                 val pathPine = Path().apply {
                                     moveTo(pineX, pineY + 10f)
                                     lineTo(pineX - 14f, pineY + 24f)
@@ -1103,7 +1264,6 @@ fun GameScreen(
                                     close()
                                 }
                                 drawPath(pathPine, Color(0xFF16A34A))
-                                // Trunk
                                 drawRect(color = Color(0xFF78350F), topLeft = Offset(pineX - 4f, pineY + 54f), size = Size(8f, 10f))
                             }
 
@@ -1113,22 +1273,29 @@ fun GameScreen(
                             val wRad = viewW * 0.16f
                             rotate(degrees = viewModel.steerInput.toFloat() * 66f, pivot = Offset(wheelCX, wheelCY)) {
                                 drawCircle(color = Color(0xFF181811), radius = wRad, center = Offset(wheelCX, wheelCY), style = Stroke(width = 16f))
-                                // Spokes
                                 drawLine(color = Color(0xFF181811), start = Offset(wheelCX, wheelCY), end = Offset(wheelCX - wRad, wheelCY - 10f), strokeWidth = 15f)
                                 drawLine(color = Color(0xFF181811), start = Offset(wheelCX, wheelCY), end = Offset(wheelCX + wRad, wheelCY - 10f), strokeWidth = 15f)
                                 drawLine(color = Color(0xFF181811), start = Offset(wheelCX, wheelCY), end = Offset(wheelCX, wheelCY + wRad), strokeWidth = 18f)
-                                // Center Boss pad
                                 drawCircle(color = Color(0xFF27272A), radius = 26f, center = Offset(wheelCX, wheelCY))
                             }
                         }
                         2 -> { // Premium LADA/Carbon interior
-                            // Matte dark executive carbon cockpit console
+                            // Matte dark executive carbon cockpit console (With woven carbon texture)
                             drawRect(
                                 color = Color(0xFF18181B),
                                 topLeft = Offset(0f, dashTopY),
                                 size = Size(viewW, viewH - dashTopY)
                             )
-                            // Silver line decoration
+                            // Draw carbon textures
+                            for (lIdx in 0..30) {
+                                val offsetPr = lIdx * 25f
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.05f),
+                                    start = Offset(offsetPr, dashTopY),
+                                    end = Offset(offsetPr - 60f, viewH),
+                                    strokeWidth = 2.5f
+                                )
+                            }
                             drawLine(color = Color(0xFF94A3B8), start = Offset(0f, dashTopY + 12f), end = Offset(viewW, dashTopY + 12f), strokeWidth = 2f)
 
                             // Dynamic stitching matching paintCarColor!
@@ -1151,6 +1318,22 @@ fun GameScreen(
                             )
                             drawRect(color = if (isRadarWarn) Color(0x66EF4444) else Color(0x6622C55E), topLeft = Offset(detectorX - 12f, detectorY + 4f), size = Size(40f, 10f))
 
+                            // Icy blue premium touchscreen infotainment displaying audio radio waveform
+                            val screenX = viewW * 0.60f
+                            val screenY = dashTopY + 45f
+                            drawRoundRect(color = Color(0xFF0F172A), topLeft = Offset(screenX - 55f, screenY), size = Size(110f, 55f), cornerRadius = CornerRadius(6f,6f), style = Stroke(width = 2f))
+                            drawRoundRect(color = Color(0xFF1E293B), topLeft = Offset(screenX - 53f, screenY + 2f), size = Size(106f, 51f), cornerRadius = CornerRadius(4f,4f))
+                            val timeMs = System.currentTimeMillis()
+                            for (wave in 0..11) {
+                                val h = 6f + kotlin.math.sin(timeMs / 100.0 + wave).toFloat() * 14f + 14f
+                                drawLine(
+                                    color = Color(0xFF22D3EE),
+                                    start = Offset(screenX - 44f + wave * 8f, screenY + 28f - h/2f),
+                                    end = Offset(screenX - 44f + wave * 8f, screenY + 28f + h/2f),
+                                    strokeWidth = 3.5f
+                                )
+                            }
+
                             // Speedometer instrument console glowing
                             val dX = viewW * 0.22f
                             val dialCY = dashTopY + 95f
@@ -1161,6 +1344,10 @@ fun GameScreen(
                                 drawLine(color = Color.Red, start = Offset(dX, dialCY), end = Offset(dX, dialCY - 34f), strokeWidth = 2f)
                             }
                             drawCircle(color = Color.White, radius = 3f, center = Offset(dX, dialCY))
+
+                            // Blinking indicators
+                            drawCircle(color = if (lTurnActive) Color(0xFF10B981) else Color(0x33047857), radius = 5.5f, center = Offset(dX - 52f, dialCY))
+                            drawCircle(color = if (rTurnActive) Color(0xFF10B981) else Color(0x33047857), radius = 5.5f, center = Offset(dX + 52f, dialCY))
 
                             // Priora style modern thick oval 3-spoke steering wheel
                             val wheelCX = viewW * 0.31f
@@ -1176,12 +1363,18 @@ fun GameScreen(
                             }
                         }
                         3 -> { // Heavy truck/KAMAZ interior
-                            // High heavy iron dashboard console
+                            // High heavy iron dashboard console (with metal rivet styling)
                             drawRect(
                                 color = Color(0xFF451A03),
                                 topLeft = Offset(0f, dashTopY - 10f),
                                 size = Size(viewW, viewH - (dashTopY - 10f))
                             )
+                            // Draw heavy duty structural rivets
+                            for (r in 1..8) {
+                                val rx = r * (viewW / 9.0f)
+                                drawCircle(color = Color(0xFF78716C), radius = 4f, center = Offset(rx, dashTopY - 4f))
+                                drawCircle(color = Color(0xFF1C1917), radius = 4f, center = Offset(rx, dashTopY - 4f), style = Stroke(width = 1f))
+                            }
                             drawLine(
                                 color = Color(0xFF27272A),
                                 start = Offset(viewW * 0.5f, 0f),
@@ -1209,6 +1402,32 @@ fun GameScreen(
                             drawRect(color = Color(0xFFB45309), topLeft = Offset(teaX - 16f, teaY + 4f), size = Size(32f, 32f))
                             drawRoundRect(color = Color(0xFF94A3B8), topLeft = Offset(teaX + 20f, teaY + 10f), size = Size(10f, 20f), cornerRadius = CornerRadius(4f,4f), style = Stroke(width = 3f))
 
+                            // Classic AM Radio board
+                            val radioX = viewW * 0.61f
+                            val radioY = dashTopY + 45f
+                            drawRect(color = Color(0xFF1C1917), topLeft = Offset(radioX - 45f, radioY), size = Size(90f, 30f))
+                            drawRect(color = Color(0xFF78716C), topLeft = Offset(radioX - 41f, radioY + 4f), size = Size(82f, 22f))
+                            drawLine(color = Color(0xFFEA580C), start = Offset(radioX - 32f, radioY + 15f), end = Offset(radioX + 32f, radioY + 15f), strokeWidth = 2.5f)
+                            drawCircle(color = Color.Red, radius = 2.5f, center = Offset(radioX - 10f + kotlin.math.sin(System.currentTimeMillis() / 320.0).toFloat() * 18f, radioY + 15f))
+
+                            // Hanging Fresh-Pine Tree "Ёлочка" next to tea cup!
+                            val pineX = viewW * 0.88f
+                            val pineY = dashTopY + 15f
+                            rotate(degrees = swayDeg, pivot = Offset(pineX, pineY - 8f)) {
+                                drawLine(color = Color.White, start = Offset(pineX, pineY - 8f), end = Offset(pineX, pineY + 10f), strokeWidth = 1.5f)
+                                val pathPine = Path().apply {
+                                    moveTo(pineX, pineY + 10f)
+                                    lineTo(pineX - 12f, pineY + 22f)
+                                    lineTo(pineX + 12f, pineY + 22f)
+                                    close()
+                                    moveTo(pineX, pineY + 18f)
+                                    lineTo(pineX - 15f, pineY + 34f)
+                                    lineTo(pineX + 15f, pineY + 34f)
+                                    close()
+                                }
+                                drawPath(pathPine, Color(0xFF15803D))
+                            }
+
                             // Massive round heavy industrial metric dials
                             val dX = viewW * 0.22f
                             val dialCY = dashTopY + 90f
@@ -1219,6 +1438,10 @@ fun GameScreen(
                                 drawLine(color = Color.Red, start = Offset(dX, dialCY), end = Offset(dX, dialCY - 28f), strokeWidth = 3f)
                             }
                             drawCircle(color = Color.White, radius = 5f, center = Offset(dX, dialCY))
+
+                            // Blinking indicators
+                            drawCircle(color = if (lTurnActive) Color(0xFF22C55E) else Color(0x3314532D), radius = 5f, center = Offset(dX - 48f, dialCY))
+                            drawCircle(color = if (rTurnActive) Color(0xFF22C55E) else Color(0x3314532D), radius = 5f, center = Offset(dX + 48f, dialCY))
 
                             // Giant flat horizontal truck steering wheel
                             val wheelCX = viewW * 0.31f
@@ -1252,6 +1475,10 @@ fun GameScreen(
                             drawCircle(color = Color.Black, radius = 8f, center = Offset(glassX - 10f, glassY))
                             drawCircle(color = Color.Black, radius = 8f, center = Offset(glassX + 10f, glassY))
                             drawLine(color = Color(0xFFFFD700), start = Offset(glassX - 10f, glassY - 5f), end = Offset(glassX + 10f, glassY - 5f), strokeWidth = 2f)
+
+                            // Blinking indicators
+                            drawCircle(color = if (lTurnActive) Color(0xFF10B981) else Color(0x33064E3B), radius = 6f, center = Offset(viewW * 0.12f, dashTopY + 54f))
+                            drawCircle(color = if (rTurnActive) Color(0xFF10B981) else Color(0x33064E3B), radius = 6f, center = Offset(viewW * 0.44f, dashTopY + 54f))
 
                             // BMW Orange / Amber illuminated clusters
                             val dX = viewW * 0.22f
