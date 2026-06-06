@@ -53,7 +53,8 @@ data class CopCar(
     var angle: Double = 0.0,
     var health: Double = 100.0,
     var isStruck: Boolean = false,
-    var isStuckFrames: Int = 0
+    var isStuckFrames: Int = 0,
+    var botType: Int = 0 // 0 = Standard Cop, 1 = Undercover mafia E34, 2 = Drift racer Priora, 3 = Heavy SWAT Kamaz
 )
 
 data class Bullet(
@@ -181,25 +182,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun generateMap() {
-        // Map division is 5x5 sectors centered around coordinates
+        // Map division scales dynamically based on mapSize!
         // Avenues are located at multiples of 800.
         obstacles.clear()
         
-        // Spawn standard structural buildings & blocks
-        for (i in 0..4) {
-            for (j in 0..4) {
+        val sectorsCount = (mapSize / 800.0).toInt().coerceAtLeast(3)
+        
+        // Spawn standard structural buildings & blocks matching map size sectors
+        for (i in 0 until sectorsCount) {
+            for (j in 0 until sectorsCount) {
                 val blockCenterX = i * 800.0 + 400.0
                 val blockCenterY = j * 800.0 + 400.0
 
                 // Do not put obstacles directly at the player's initial spawning area (2000, 2000)
-                if (abs(blockCenterX - 2000.0) < 100.0 && abs(blockCenterY - 2000.0) < 100.0) {
+                if (abs(blockCenterX - 2000.0) < 150.0 && abs(blockCenterY - 2000.0) < 150.0) {
                     continue
                 }
 
-                val pattern = (i + j) % 3
+                val pattern = (i + j) % 4
                 when (pattern) {
                     0 -> {
-                        // Two high concrete block buildings (панельки)
+                        // Two high concrete block buildings (панельки) and a shop
                         obstacles.add(
                             Obstacle(
                                 Rect(
@@ -210,7 +213,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                                 ), ObstacleType.BUILDING, "Панелька Хрущевка"
                             )
                         )
-                        // Add a Car Service Workshop target zone: "Тюнинг-Про" at (blockCenterX + 160.0, blockCenterY - 40.0)
+                        // Add a Car Service Workshop or dynamic shops like Convenience Stores
+                        val landmarkName = when {
+                            i == 1 && j == 2 -> "Тюнинг-Про Автосервис"
+                            (i + j) % 5 == 1 -> "Магазин «Пятёрочка»"
+                            (i + j) % 5 == 2 -> "Круглосуточный Продукты 24"
+                            else -> "Гаражный Кооператив"
+                        }
                         obstacles.add(
                             Obstacle(
                                 Rect(
@@ -218,12 +227,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                                     (blockCenterY - 140.0).toFloat(),
                                     (blockCenterX + 240.0).toFloat(),
                                     (blockCenterY + 140.0).toFloat()
-                                ), ObstacleType.BUILDING, if (i == 1 && j == 2) "Тюнинг-Про Автосервис" else "Гаражный Кооператив"
+                                ), ObstacleType.BUILDING, landmarkName
                             )
                         )
                     }
                     1 -> {
-                        // Massive 9-story apartment complex
+                        // Massive 9-story apartment complex or Cultural Center
+                        val blockName = if ((i * j) % 2 == 0) "9-Этажка Панельная" else "ДК «Родина»"
                         obstacles.add(
                             Obstacle(
                                 Rect(
@@ -231,7 +241,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                                     (blockCenterY - 180.0).toFloat(),
                                     (blockCenterX + 180.0).toFloat(),
                                     (blockCenterY + 180.0).toFloat()
-                                ), ObstacleType.BUILDING, "9-Этажка Панельная"
+                                ), ObstacleType.BUILDING, blockName
                             )
                         )
                     }
@@ -248,13 +258,26 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         )
                     }
+                    3 -> {
+                        // Soviet school or residential courtyard block
+                        obstacles.add(
+                            Obstacle(
+                                Rect(
+                                    (blockCenterX - 200.0).toFloat(),
+                                    (blockCenterY - 100.0).toFloat(),
+                                    (blockCenterX + 200.0).toFloat(),
+                                    (blockCenterY + 100.0).toFloat()
+                                ), ObstacleType.BUILDING, "Районная Поликлиника"
+                            )
+                        )
+                    }
                 }
             }
         }
 
         // Spawn roadside forests, gardens, and birch tree alleys on open yards
-        for (gx in 1..4) {
-            for (gy in 1..4) {
+        for (gx in 1 until sectorsCount) {
+            for (gy in 1 until sectorsCount) {
                 val grassX = gx * 800.0
                 val grassY = gy * 800.0
                 
@@ -324,7 +347,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         maxSpeed = rawMaxSpeed * speedMult
         acceleration = rawAccel * accelMult
-        gripFactor = rawGrip * gripMult
+        var currentGrip = rawGrip * gripMult
+
+        // Suspension height tuning effects: 0 = Slammed/Заниженная, 1 = Standard, 2 = Offroad High
+        when (config.suspensionHeight) {
+            0 -> { // Slammed
+                currentGrip *= 1.24
+                maxSpeed *= 0.94
+            }
+            2 -> { // Raised Offroad High
+                currentGrip *= 0.88
+                acceleration *= 1.14
+            }
+        }
+
+        gripFactor = currentGrip
         brakingForce = rawBraking
         maxNitro = rawMaxNitro
         currentCarColor = config.carColor
@@ -917,33 +954,60 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     activeBullets.removeAt(bIdx)
 
                     if (cop.health <= 0) {
-                        copList.removeAt(cIdx)
-                        runScore += 600
-                        earnedCash += 200 // Bonus authority cash
+                        runScore += 500
+                        earnedCash += 150
                     }
                     break
                 }
             }
         }
 
-        // Manage standard cops spawning
-        val optimalCopsCount = current.heatLevel
+        // Manage standard cops spawning with density settings
+        val densityMult = when (carConfigState.value.copDensitySetting) {
+            1 -> 0.5
+            2 -> 1.0
+            3 -> 2.2 // Chaos mode!
+            else -> 1.0
+        }
+        val optimalCopsCount = (current.heatLevel * densityMult).toInt().coerceAtLeast(1)
         val copsActive = current.heatLevel >= 1
 
-        if (copList.size < optimalCopsCount && random.nextInt(85) == 0) {
+        val spawnChance = when (carConfigState.value.copDensitySetting) {
+            1 -> 150
+            2 -> 80
+            3 -> 40 // Chaos spawns rapid-fire!
+            else -> 80
+        }
+
+        if (copList.size < optimalCopsCount && random.nextInt(spawnChance) == 0) {
             val spawnAngle = random.nextDouble() * 2.0 * Math.PI
             val spawnDist = 700.0 + random.nextDouble() * 200.0
             val spawnCX = (px + cos(spawnAngle) * spawnDist).coerceIn(100.0, mapSize - 100.0)
             val spawnCY = (py + sin(spawnAngle) * spawnDist).coerceIn(100.0, mapSize - 100.0)
 
             if (!isCollidingWithObstacle(spawnCX, spawnCY, 20.0)) {
+                // Procedurally decide bot style: 0 = Standard Cop, 1 = Mafia E34, 2 = Racer Priora, 3 = Heavy SWAT
+                val bType = when (random.nextInt(100)) {
+                    in 0..50 -> 0                        // 51% standard police
+                    in 51..70 -> 1                       // 20% Undercover Mafia
+                    in 71..88 -> 2                       // 18% Drifter Racer
+                    else -> 3                            // 11% SWAT KAMAZ
+                }
+                val hp = when (bType) {
+                    3 -> 260.0  // Heavy truck armor
+                    1 -> 140.0  // Sport sedan steel
+                    2 -> 85.0   // Light drift tuned
+                    else -> 100.0
+                }
                 copList.add(
                     CopCar(
                         id = copIdCounter++,
                         x = spawnCX,
                         y = spawnCY,
-                        speed = 0.0,
-                        angle = spawnAngle + Math.PI
+                        speed = 1.0,
+                        angle = spawnAngle + Math.PI,
+                        health = hp,
+                        botType = bType
                     )
                 )
             }
@@ -962,8 +1026,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val targetAngle = atan2(dy, dx)
             cop.angle = steerTowards(cop.angle, targetAngle, 0.055)
 
-            val copMaxSpeed = (7.5 + current.heatLevel * 0.75) * (if (copsTurboMode) 2.5 else 1.0)
-            val copAccel = (0.11 + current.heatLevel * 0.015) * (if (copsTurboMode) 2.5 else 1.0)
+            var copMaxSpeed = (7.5 + current.heatLevel * 0.75) * (if (copsTurboMode) 2.5 else 1.0)
+            var copAccel = (0.11 + current.heatLevel * 0.015) * (if (copsTurboMode) 2.5 else 1.0)
+
+            // Adjust physics properties depending on Bot archetype
+            when (cop.botType) {
+                1 -> { // Mafia BMW
+                    copMaxSpeed *= 1.25
+                    copAccel *= 1.15
+                }
+                2 -> { // Drifter Racer
+                    copMaxSpeed *= 1.38
+                    copAccel *= 1.30
+                }
+                3 -> { // SWAT KAMAZ Heavy Patrol
+                    copMaxSpeed *= 0.72
+                    copAccel *= 0.85
+                }
+            }
 
             val driveToPlayerSpeed = if (copsDumbMode) {
                 0.0
@@ -1015,8 +1095,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     viewModelScope.launch(Dispatchers.Main) { SoundManager.playCrashSound() }
                     
                     val wF = getCarWeightFactor()
+                    val copWeightFactor = when (cop.botType) {
+                        3 -> 3.2 // Kamaz is heavy
+                        1 -> 1.25 // BMW is midweight
+                        else -> 1.0
+                    }
                     if (pSpeed > cop.speed && pSpeed > 4.0) {
-                        cop.health -= (pSpeed * 18.0) * wF
+                        cop.health -= ((pSpeed * 18.0) * wF) / copWeightFactor
                         pSpeed = pSpeed * (if (wF > 2.0) 0.82 else 0.40) // Kamaz retains most speed on impact!
                         cop.speed = -cop.speed * 0.4
                         
@@ -1026,7 +1111,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else {
                         if (!pconfig.godMode) {
-                            val dmg = (cop.speed * 4.2) / wF
+                            val dmg = when(cop.botType) {
+                                3 -> (cop.speed * 8.5) / wF // SWAT KAMAZ rams extremely hard!
+                                1 -> (cop.speed * 5.2) / wF // Mafia E34 mid-impact
+                                else -> (cop.speed * 4.2) / wF
+                            }
                             pHealth = (pHealth - dmg).coerceAtLeast(0.0)
                         }
                         cop.speed = -cop.speed * 0.3
@@ -1180,6 +1269,51 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.saveCarConfig(config.copy(carColor = colorInt))
         }
+    }
+
+    fun updateCopDensity(densityLevel: Int) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(copDensitySetting = densityLevel))
+        }
+    }
+
+    fun updateTintLevel(tint: Int) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(tintLevel = tint))
+        }
+    }
+
+    fun updateSuspensionHeight(height: Int) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(suspensionHeight = height))
+        }
+    }
+
+    fun updateNeonColorHex(hexColor: Long) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(neonColorHex = hexColor))
+        }
+    }
+
+    fun updateMapSize(sizePreset: String) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(mapSizeSetting = sizePreset))
+        }
+    }
+
+    fun updateWeatherFromSettings(wType: String) {
+        val config = carConfigState.value
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.saveCarConfig(config.copy(targetWeather = wType))
+        }
+        _gameState.value = _gameState.value.copy(
+            weatherParticles = createWeatherParticles(wType)
+        )
     }
 
     fun exitToMenu() {

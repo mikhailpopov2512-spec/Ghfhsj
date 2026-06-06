@@ -39,6 +39,7 @@ fun MainMenuScreen(
     onStartGame: () -> Unit,
     onNavigateToGarage: () -> Unit,
     onNavigateToStats: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onAddCheatCash: () -> Unit,
     // Add additional viewmodel binding directly here for admin actions and donation purchases
     viewModel: GameViewModel? = null
@@ -529,6 +530,43 @@ fun MainMenuScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "ДЕЛА И АЧИВКИ (РЕПУТАЦИЯ)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
+
+            // 7.5. Dedicated Settings Button for City Setup & Weather
+            item {
+                Button(
+                    onClick = onNavigateToSettings,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1E293B)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("settings_screen_button")
+                        .border(1.dp, Color(0xFF3B82F6), RoundedCornerShape(12.dp))
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = Color(0xFF3B82F6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "НАСТРОЙКИ ГОРОДА (ПОГОДА, ДПС)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,

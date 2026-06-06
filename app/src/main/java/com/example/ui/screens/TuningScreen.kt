@@ -258,7 +258,7 @@ fun TuningScreen(
                             // Draw Neon Green Underglow glowing reflection if equipped!
                             if (config.neonUnderglow) {
                                 drawLine(
-                                    color = greenNeon.copy(alpha = 0.84f),
+                                    color = Color(config.neonColorHex).copy(alpha = 0.84f),
                                     start = Offset(w * 0.22f, h * 0.75f),
                                     end = Offset(w * 0.80f, h * 0.75f),
                                     strokeWidth = 10f
@@ -297,23 +297,23 @@ fun TuningScreen(
                             drawCircle(
                                 color = Color(0xFF141419),
                                 radius = 22f,
-                                center = Offset(w * 0.30f, h * 0.70f)
+                                center = Offset(w * 0.30f, h * 0.70f + when (config.suspensionHeight) { 0 -> -6f; 2 -> 10f; else -> 0f })
                             )
                             drawCircle(
                                 color = Color.White,
                                 radius = 20f,
-                                center = Offset(w * 0.30f, h * 0.70f),
+                                center = Offset(w * 0.30f, h * 0.70f + when (config.suspensionHeight) { 0 -> -6f; 2 -> 10f; else -> 0f }),
                                 style = Stroke(width = 3f)
                             )
                             drawCircle(
                                 color = Color(0xFF141419),
                                 radius = 22f,
-                                center = Offset(w * 0.72f, h * 0.70f)
+                                center = Offset(w * 0.72f, h * 0.70f + when (config.suspensionHeight) { 0 -> -6f; 2 -> 10f; else -> 0f })
                             )
                             drawCircle(
                                 color = Color.White,
                                 radius = 20f,
-                                center = Offset(w * 0.72f, h * 0.70f),
+                                center = Offset(w * 0.72f, h * 0.70f + when (config.suspensionHeight) { 0 -> -6f; 2 -> 10f; else -> 0f }),
                                 style = Stroke(width = 3f)
                             )
 
@@ -325,9 +325,14 @@ fun TuningScreen(
                                 lineTo(w * 0.40f, h * 0.48f)
                                 close()
                             }
+                            val windowTint = when (config.tintLevel) {
+                                1 -> Color(0xFF0F172A).copy(alpha = 0.72f) // Cool dark smoke
+                                2 -> Color.Black.copy(alpha = 0.95f) // Deep "Bunker" black tint!
+                                else -> Color(0xFF00D2FF).copy(alpha = 0.5f) // Un-tinted classic azure
+                            }
                             drawPath(
                                 path = windowPath,
-                                color = Color(0xFF00D2FF).copy(alpha = 0.5f)
+                                color = windowTint
                             )
                         }
 

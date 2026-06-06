@@ -48,7 +48,11 @@ data class CarConfig(
     val graphicsQuality: String = "HIGH", // LOW, MEDIUM, HIGH
     val mapSizeSetting: String = "BIG",   // NORMAL, BIG, ULTRA
     val hasVipStatus: Boolean = false,    // VIP Deluxe status
-    val hasFullAdminControl: Boolean = false // Full Control level access
+    val hasFullAdminControl: Boolean = false, // Full Control level access
+    val copDensitySetting: Int = 2, // 1 = Low, 2 = Normal, 3 = Heavy! (Жесть!)
+    val tintLevel: Int = 0, // 0 = No tint, 1 = Rear 50%, 2 = Full 100% "В бункер"
+    val suspensionHeight: Int = 1, // 0 = Slammed (Занижение), 1 = Standard, 2 = High (Вездеход)
+    val neonColorHex: Long = 0xFF10B981 // Active neon color hex
 )
 
 data class CarModelDetail(

@@ -19,6 +19,7 @@ import com.example.ui.screens.GameScreen
 import com.example.ui.screens.MainMenuScreen
 import com.example.ui.screens.StatsScreen
 import com.example.ui.screens.TuningScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -54,10 +55,23 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToStats = {
                                     navController.navigate("stats")
                                 },
+                                onNavigateToSettings = {
+                                    navController.navigate("settings")
+                                },
                                 onAddCheatCash = {
                                     gameViewModel.addCheatCash()
                                 },
                                 viewModel = gameViewModel
+                            )
+                        }
+
+                        // Settings Panel Configuration Screen
+                        composable("settings") {
+                            SettingsScreen(
+                                viewModel = gameViewModel,
+                                onBackToMenu = {
+                                    navController.popBackStack()
+                                }
                             )
                         }
 

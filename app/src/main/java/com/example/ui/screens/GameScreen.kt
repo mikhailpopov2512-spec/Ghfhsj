@@ -755,66 +755,160 @@ fun GameScreen(
                     }
                 }
 
-                // 8. Police Cars in 3D Perspective!
+                // 8. Police Cars and Bots in 3D Perspective!
                 state.copCars.forEach { cop ->
                     val distZ = (cop.x - px) * kotlin.math.cos(pAngle) + (cop.y - py) * kotlin.math.sin(pAngle) + D_behind
                     if (distZ > 10.0 && distZ < 1400.0) {
-                        val sizeS3D = (34.0f * F) / distZ.toFloat()
-                        val copW = sizeS3D.coerceIn(2f, 100f)
-                        val copH = (copW * 0.45f).coerceIn(1f, 45f)
+                        val baseScale = when (cop.botType) {
+                            3 -> 1.75f // Heavy SWAT Kamaz is massive!
+                            1 -> 1.15f // Mafia E34 is slightly wider sport sedan
+                            else -> 1.00f
+                        }
+                        val sizeS3D = (34.0f * F) / distZ.toFloat() * baseScale
+                        val copW = sizeS3D.coerceIn(2f, 180f)
+                        val copH = (copW * (if (cop.botType == 3) 0.8f else 0.45f)).coerceIn(1f, 110f)
 
                         val copProj = projectGround(cop.x, cop.y, 1.0)
                         if (copProj != null) {
                             val isFlashingSirenRed = (System.currentTimeMillis() / 150L) % 2L == 0L
-                            val copBodyColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
-
+                            
+                            // Tires
                             drawRect(
                                 color = Color.Black,
                                 topLeft = Offset(copProj.x - copW * 0.45f, copProj.y - copH * 0.1f),
-                                size = Size(copW * 0.2f, copH * 0.3f)
+                                size = Size(copW * 0.18f, copH * 0.3f)
                             )
                             drawRect(
                                 color = Color.Black,
-                                topLeft = Offset(copProj.x + copW * 0.25f, copProj.y - copH * 0.1f),
-                                size = Size(copW * 0.2f, copH * 0.3f)
+                                topLeft = Offset(copProj.x + copW * 0.27f, copProj.y - copH * 0.1f),
+                                size = Size(copW * 0.18f, copH * 0.3f)
                             )
 
-                            drawRoundRect(
-                                color = copBodyColor,
-                                topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
-                                size = Size(copW, copH),
-                                cornerRadius = CornerRadius(4f, 4f)
-                            )
+                            when (cop.botType) {
+                                1 -> { // Undercover Mafia BMW E34 Sport
+                                    val bColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
+                                    // Main dark metallic body
+                                    drawRoundRect(
+                                        color = bColor,
+                                        topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
+                                        size = Size(copW, copH),
+                                        cornerRadius = CornerRadius(6f, 6f)
+                                    )
+                                    // Pitch black tinted glass windows
+                                    drawRect(
+                                        color = Color(0xFF020617),
+                                        topLeft = Offset(copProj.x - copW * 0.35f, copProj.y - copH * 0.9f),
+                                        size = Size(copW * 0.7f, copH * 0.4f)
+                                    )
+                                    // Angel eye headlights (Yellow glowing rounds)
+                                    drawCircle(color = Color(0xFFFBBF24), radius = (copW * 0.04f).coerceAtLeast(1f), center = Offset(copProj.x - copW * 0.36f, copProj.y - copH * 0.25f))
+                                    drawCircle(color = Color(0xFFFBBF24), radius = (copW * 0.04f).coerceAtLeast(1f), center = Offset(copProj.x - copW * 0.24f, copProj.y - copH * 0.25f))
+                                    drawCircle(color = Color(0xFFFBBF24), radius = (copW * 0.04f).coerceAtLeast(1f), center = Offset(copProj.x + copW * 0.24f, copProj.y - copH * 0.25f))
+                                    drawCircle(color = Color(0xFFFBBF24), radius = (copW * 0.04f).coerceAtLeast(1f), center = Offset(copProj.x + copW * 0.36f, copProj.y - copH * 0.25f))
+                                }
+                                2 -> { // Rival Street Racer (Priora / Carbon Tuning)
+                                    val bColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFFEF4444)
+                                    drawRoundRect(
+                                        color = bColor,
+                                        topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
+                                        size = Size(copW, copH),
+                                        cornerRadius = CornerRadius(5f, 5f)
+                                    )
+                                    // Sport tinted glass windows
+                                    drawRect(
+                                        color = Color(0xFF0F172A),
+                                        topLeft = Offset(copProj.x - copW * 0.32f, copProj.y - copH * 0.9f),
+                                        size = Size(copW * 0.64f, copH * 0.35f)
+                                    )
+                                    // White sport decals / action stripes
+                                    drawRect(
+                                        color = Color.White,
+                                        topLeft = Offset(copProj.x - copW * 0.15f, copProj.y - copH * 0.55f),
+                                        size = Size(copW * 0.07f, copH * 0.55f)
+                                    )
+                                    drawRect(
+                                        color = Color.White,
+                                        topLeft = Offset(copProj.x + copW * 0.08f, copProj.y - copH * 0.55f),
+                                        size = Size(copW * 0.07f, copH * 0.55f)
+                                    )
+                                    // Custom Carbon spoiler
+                                    drawRect(
+                                        color = Color(0xFF0F172A),
+                                        topLeft = Offset(copProj.x - copW * 0.45f, copProj.y - copH - copH * 0.18f),
+                                        size = Size(copW * 0.9f, copH * 0.12f)
+                                    )
+                                    // Spoiler stands
+                                    drawLine(color = Color.Black, start = Offset(copProj.x - copW * 0.3f, copProj.y - copH), end = Offset(copProj.x - copW * 0.3f, copProj.y - copH - copH * 0.15f), strokeWidth = 2f)
+                                    drawLine(color = Color.Black, start = Offset(copProj.x + copW * 0.3f, copProj.y - copH), end = Offset(copProj.x + copW * 0.3f, copProj.y - copH - copH * 0.15f), strokeWidth = 2f)
+                                }
+                                3 -> { // SWAT KAMAZ Heavy Support Truck
+                                    val bColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E40AF)
+                                    // Huge armored cab
+                                    drawRoundRect(
+                                        color = bColor,
+                                        topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
+                                        size = Size(copW, copH),
+                                        cornerRadius = CornerRadius(8f, 8f)
+                                    )
+                                    // Armored Windshield
+                                    drawRect(
+                                        color = Color(0xFF1E293B),
+                                        topLeft = Offset(copProj.x - copW * 0.4f, copProj.y - copH * 0.92f),
+                                        size = Size(copW * 0.8f, copH * 0.28f)
+                                    )
+                                    // Double amber warning flashers on cab roof
+                                    val flasherY = copProj.y - copH - copH * 0.1f
+                                    drawRect(
+                                        color = if (isFlashingSirenRed) Color(0xFFF97316) else Color.Yellow,
+                                        topLeft = Offset(copProj.x - copW * 0.28f, flasherY),
+                                        size = Size(copW * 0.14f, copH * 0.15f)
+                                    )
+                                    drawRect(
+                                        color = if (isFlashingSirenRed) Color.Yellow else Color(0xFFF97316),
+                                        topLeft = Offset(copProj.x + copW * 0.14f, flasherY),
+                                        size = Size(copW * 0.14f, copH * 0.15f)
+                                    )
+                                }
+                                else -> { // DPS Standard Police car (VAZ DPS)
+                                    val copBodyColor = if (cop.isStruck) Color(0xFFFECDD3) else Color(0xFF1E293B)
+                                    drawRoundRect(
+                                        color = copBodyColor,
+                                        topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH),
+                                        size = Size(copW, copH),
+                                        cornerRadius = CornerRadius(4f, 4f)
+                                    )
 
-                            drawRect(
-                                color = Color.White,
-                                topLeft = Offset(copProj.x - copW * 0.18f, copProj.y - copH),
-                                size = Size(copW * 0.36f, copH)
-                            )
+                                    drawRect(
+                                        color = Color.White,
+                                        topLeft = Offset(copProj.x - copW * 0.18f, copProj.y - copH),
+                                        size = Size(copW * 0.36f, copH)
+                                    )
 
-                            drawRect(
-                                color = Color(0xFF1D4ED8),
-                                topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH * 0.65f),
-                                size = Size(copW, copH * 0.25f)
-                            )
+                                    drawRect(
+                                        color = Color(0xFF1D4ED8),
+                                        topLeft = Offset(copProj.x - copW * 0.5f, copProj.y - copH * 0.65f),
+                                        size = Size(copW, copH * 0.25f)
+                                    )
 
-                            drawRect(
-                                color = Color(0xFF0F172A),
-                                topLeft = Offset(copProj.x - copW * 0.35f, copProj.y - copH * 0.95f),
-                                size = Size(copW * 0.7f, copH * 0.3f)
-                            )
+                                    drawRect(
+                                        color = Color(0xFF0F172A),
+                                        topLeft = Offset(copProj.x - copW * 0.35f, copProj.y - copH * 0.95f),
+                                        size = Size(copW * 0.7f, copH * 0.3f)
+                                    )
 
-                            val sirenY = copProj.y - copH - copH * 0.15f
-                            drawRect(
-                                color = if (isFlashingSirenRed) Color.Red else Color.Blue,
-                                topLeft = Offset(copProj.x - copW * 0.12f, sirenY),
-                                size = Size(copW * 0.12f, copH * 0.22f)
-                            )
-                            drawRect(
-                                color = if (isFlashingSirenRed) Color.Blue else Color.Red,
-                                topLeft = Offset(copProj.x, sirenY),
-                                size = Size(copW * 0.12f, copH * 0.22f)
-                            )
+                                    val sirenY = copProj.y - copH - copH * 0.15f
+                                    drawRect(
+                                        color = if (isFlashingSirenRed) Color.Red else Color.Blue,
+                                        topLeft = Offset(copProj.x - copW * 0.12f, sirenY),
+                                        size = Size(copW * 0.12f, copH * 0.22f)
+                                    )
+                                    drawRect(
+                                        color = if (isFlashingSirenRed) Color.Blue else Color.Red,
+                                        topLeft = Offset(copProj.x, sirenY),
+                                        size = Size(copW * 0.12f, copH * 0.22f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -835,7 +929,7 @@ fun GameScreen(
 
                 if (carConfig.neonUnderglow) {
                     drawCircle(
-                        color = Color(0xFF22C55E).copy(alpha = 0.45f),
+                        color = Color(carConfig.neonColorHex).copy(alpha = 0.45f),
                         radius = ldaW * 0.8f,
                         center = Offset(cx + tiltX.toFloat(), cy - ldaCY.toFloat() - ldaH * 0.2f)
                     )
@@ -1787,7 +1881,7 @@ fun GameScreen(
                 ) {
                     if (carConfig.neonUnderglow) {
                         drawCircle(
-                            color = Color(0xFF22C55E).copy(alpha = 0.35f),
+                            color = Color(carConfig.neonColorHex).copy(alpha = 0.35f),
                             radius = 35f,
                             center = Offset(px.toFloat(), py.toFloat())
                         )
