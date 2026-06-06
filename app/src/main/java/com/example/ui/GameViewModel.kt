@@ -113,6 +113,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _gameState = MutableStateFlow(GameState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
+    private val _isPaused = MutableStateFlow(false)
+    val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
+
+    fun togglePause() {
+        if (_gameState.value.status == GameStatus.GAMEPLAY) {
+            _isPaused.value = !_isPaused.value
+        }
+    }
+
+    fun setPause(paused: Boolean) {
+        if (_gameState.value.status == GameStatus.GAMEPLAY) {
+            _isPaused.value = paused
+        }
+    }
+
     // Map properties
     val mapSize: Double
         get() = when (carConfigState.value.mapSizeSetting) {
@@ -137,6 +152,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     var accelInput = 0.0  // 0.0 (idle) to 1.0 (accelerate)
     var brakeInput = 0.0  // 0.0 to 1.0
     var nitroActive = false
+
+    var actualSteer = 0.0
+    var actualAccel = 0.0
 
     private var gameLoopJob: kotlinx.coroutines.Job? = null
     private var copIdCounter = 0
@@ -345,8 +363,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val accelMult = model.accelerationFactor
         val gripMult = if (model.weightFactor < 1.0) 1.15 else if (model.weightFactor > 2.5) 1.40 else 1.05
 
-        maxSpeed = rawMaxSpeed * speedMult
-        acceleration = rawAccel * accelMult
+        maxSpeed = rawMaxSpeed * speedMult * 0.60
+        acceleration = rawAccel * accelMult * 0.65
         var currentGrip = rawGrip * gripMult
 
         // Suspension height tuning effects: 0 = Slammed/Заниженная, 1 = Standard, 2 = Offroad High
@@ -414,6 +432,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             weatherParticles = initParticles
         )
 
+        _isPaused.value = false
+        actualSteer = 0.0
+        actualAccel = 0.0
+
         gameLoopJob?.cancel()
 
         gameLoopJob = viewModelScope.launch(Dispatchers.Default) {
@@ -422,6 +444,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             var gameSeconds = 0
 
             while (_gameState.value.status == GameStatus.GAMEPLAY) {
+                if (_isPaused.value) {
+                    lastTick = System.currentTimeMillis()
+                    delay(30)
+                    continue
+                }
                 val now = System.currentTimeMillis()
                 val delta = now - lastTick
                 lastTick = now
@@ -757,6 +784,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             shootCooldownTicks--
         }
 
+        // Interpolate controls smoothly to avoid jerking and provide an incredibly polished luxury steering feel
+        actualSteer += (steerInput - actualSteer) * 0.16
+        actualAccel += (accelInput - actualAccel) * 0.12
+
         // Apply Weather particles progression
         val weatherType = pconfig.targetWeather
         val updatedParticles = current.weatherParticles.map { p ->
@@ -787,8 +818,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val activeMaxSpeed = maxSpeed * nitroCapFactor * adminSpeedMultiplier
         val activeAcceleration = acceleration * (if (nitroActive && pNitro > 0.0) 2.0 else 1.0) * adminSpeedMultiplier
 
-        if (accelInput > 0.0 && pHealth > 0.0) {
-            pSpeed += accelInput * activeAcceleration
+        if (actualAccel > 0.0 && pHealth > 0.0) {
+            pSpeed += actualAccel * activeAcceleration
         } else if (brakeInput > 0.0) {
             pSpeed -= brakeInput * brakingForce
         } else {
@@ -803,7 +834,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val snowSteerReduce = if (weatherType == "SNOW") 0.65 else 1.0
             val steerAngleModifier = 0.065 * (1.5 - min(abs(pSpeed) / activeMaxSpeed, 0.8)) * snowSteerReduce
             val direction = if (pSpeed >= 0.0) 1.0 else -1.0
-            pAngle += steerInput * steerAngleModifier * direction
+            pAngle += actualSteer * steerAngleModifier * direction
             if (pAngle > Math.PI) pAngle -= 2 * Math.PI
             if (pAngle < -Math.PI) pAngle += 2 * Math.PI
         }
@@ -811,7 +842,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // Nitro
         if (infiniteNitro) {
             pNitro = maxNitro
-        } else if (nitroActive && pNitro > 0.0 && accelInput > 0.1) {
+        } else if (nitroActive && pNitro > 0.0 && actualAccel > 0.1) {
             pNitro = (pNitro - 1.2).coerceAtLeast(0.0)
             if (random.nextInt(6) == 0) {
                 viewModelScope.launch(Dispatchers.Main) { SoundManager.playNitroSound() }

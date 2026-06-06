@@ -48,6 +48,7 @@ fun GameScreen(
 ) {
     val state by viewModel.gameState.collectAsState()
     val carConfig by viewModel.carConfigState.collectAsState()
+    val isPaused by viewModel.isPaused.collectAsState()
 
     var cameraViewMode by remember { mutableStateOf(0) } // 0 = 3D Chase, 1 = 3D Cockpit/Interior, 2 = 2D Topdown
     val is3DView = cameraViewMode < 2
@@ -140,6 +141,17 @@ fun GameScreen(
                 isEscaped = true,
                 onBack = onBackToMenu,
                 onRestart = { viewModel.initiateGameBoot() }
+            )
+            return@Box
+        }
+
+        // CASE: Render PAUSED modal overlay
+        if (state.status == GameStatus.GAMEPLAY && isPaused) {
+            GamePauseOverlay(
+                onResume = { viewModel.togglePause() },
+                onRestart = { viewModel.initiateGameBoot() },
+                onBack = onBackToMenu,
+                carConfig = carConfig
             )
             return@Box
         }
@@ -2007,6 +2019,17 @@ fun GameScreen(
                     }
 
                     Button(
+                        onClick = { viewModel.togglePause() },
+                        colors = ButtonDefaults.buttonColors(containerColor = slateCard),
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                        modifier = Modifier.height(38.dp)
+                    ) {
+                        pText(text = "ПАУЗА ⏸️", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+
+                    Button(
                         onClick = {
                             cameraViewMode = (cameraViewMode + 1) % 3
                         },
@@ -2584,6 +2607,129 @@ fun GameResultOverlay(
                     .border(1.dp, Color(0xFF475569), RoundedCornerShape(12.dp))
             ) {
                 pText(text = "ВЕРНУТЬСЯ В ГАРАЖ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun GamePauseOverlay(
+    onResume: () -> Unit,
+    onRestart: () -> Unit,
+    onBack: () -> Unit,
+    carConfig: com.example.data.model.CarConfig
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xD9090D16)), // Deep aesthetic semi-transparent dark backdrop
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF1E293B))
+                .border(BorderStroke(2.dp, Color(0xFF3B82F6).copy(alpha = 0.8f)), RoundedCornerShape(24.dp))
+                .padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            // Animated pulse/neon glow for PAUSE header
+            Text(
+                text = "ИГРА НА ПАУЗЕ",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Black,
+                color = Color(0xFFFFD700), // Gold
+                textAlign = TextAlign.Center,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
+            )
+
+            pText(
+                text = "Твоя тачка остывает в тени, пацан. Наберись сил!",
+                color = Color(0xFF94A3B8),
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Informative parameters card
+            val modelName = com.example.data.model.CarCatalog.models.getOrNull(carConfig.carModelIndex)?.name ?: "ВАЗ"
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Color(0xFF334155)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        pText(text = "АКТИВНЫЙ КОРЧ:", color = Color(0xFF64748B), fontSize = 12.sp)
+                        pText(text = modelName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        pText(text = "СКОРОСТЬ MOTOR:", color = Color(0xFF64748B), fontSize = 12.sp)
+                        pText(text = "LVL ${carConfig.engineLevel} / 5", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        pText(text = "СЦЕПЛЕНИЕ ШИН:", color = Color(0xFF64748B), fontSize = 12.sp)
+                        pText(text = "LVL ${carConfig.tyresLevel} / 5", color = Color(0xFF10B981), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action: Resume button with beautiful neon outline
+            Button(
+                onClick = onResume,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Neon green
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) {
+                pText(text = "ПРОДОЛЖИТЬ ВЫЕЗД 🏁", fontWeight = FontWeight.Black, fontSize = 15.sp, color = Color.White)
+            }
+
+            // Action: Restart button
+            Button(
+                onClick = onRestart,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)), // Warm yellow
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                pText(text = "НАЧАТЬ ЗАНОВО 🔄", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black)
+            }
+
+            // Action: Back to Garage menu button
+            Button(
+                onClick = onBack,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .border(1.dp, Color(0xFF475569), RoundedCornerShape(14.dp))
+            ) {
+                pText(text = "ВЕРНУТЬСЯ В ГАРАЖ 🚪", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
             }
         }
     }
