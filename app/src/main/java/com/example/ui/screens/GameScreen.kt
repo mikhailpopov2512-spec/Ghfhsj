@@ -2585,6 +2585,316 @@ fun GameScreen(
                 }
             }
         }
+
+        // 3D holographic rotating Radar Mini-map (tracks user rotation, obstacles, cops, items in real-time)
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp, top = 20.dp)
+                .size(145.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xD9060B18)) // Cyber launcher theme dark glass
+                .border(
+                    BorderStroke(
+                        1.5.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                Color(0xFF3B82F6), // Blue
+                                Color(0xFF10B981)  // Green Neon
+                            )
+                        )
+                    ),
+                    RoundedCornerShape(20.dp)
+                )
+        ) {
+            val playerX = state.playerX
+            val playerY = state.playerY
+            val playerAngle = state.playerAngle // Radians
+            val mapSize = viewModel.mapSize
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp)
+            ) {
+                val radius = size.minDimension / 2f
+                val centerX = size.width / 2f
+                val centerY = size.height / 2f
+
+                // Draw radar background grids / sonar rings
+                drawCircle(
+                    color = Color(0xFF1E293B).copy(alpha = 0.35f),
+                    radius = radius,
+                    center = Offset(centerX, centerY)
+                )
+                // Sonar concentric rings
+                drawCircle(
+                    color = Color(0xFF3B82F6).copy(alpha = 0.15f),
+                    radius = radius * 0.7f,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1f)
+                )
+                drawCircle(
+                    color = Color(0xFF3B82F6).copy(alpha = 0.10f),
+                    radius = radius * 0.4f,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1f)
+                )
+
+                // Sweep animation factor
+                val sweepingAngle = ((System.currentTimeMillis() / 4L) % 360).toFloat()
+                rotate(degrees = sweepingAngle, pivot = Offset(centerX, centerY)) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(Color(0xFF3B82F6).copy(alpha = 0.25f), Color.Transparent)
+                        ),
+                        startAngle = 0f,
+                        sweepAngle = 90f,
+                        useCenter = true,
+                        topLeft = Offset(centerX - radius, centerY - radius),
+                        size = Size(radius * 2, radius * 2)
+                    )
+                }
+
+                // Orthogonal axes (crosshair)
+                drawLine(
+                    color = Color(0xFF64748B).copy(alpha = 0.15f),
+                    start = Offset(centerX - radius, centerY),
+                    end = Offset(centerX + radius, centerY),
+                    strokeWidth = 1f
+                )
+                drawLine(
+                    color = Color(0xFF64748B).copy(alpha = 0.15f),
+                    start = Offset(centerX, centerY - radius),
+                    end = Offset(centerX, centerY + radius),
+                    strokeWidth = 1f
+                )
+
+                // Scaling factor for radar map viewport. Let's show surroundings within 400 world units!
+                val radarScale = radius / 400f
+
+                // 1. DRAW ROTATED MAP SURROUNDINGS (obstacles, etc.)
+                // Rotates the entire drawing scope so player heading matches screen UP!
+                val rotDegrees = Math.toDegrees(-playerAngle - Math.PI / 2.0).toFloat()
+
+                rotate(degrees = rotDegrees, pivot = Offset(centerX, centerY)) {
+                    // Draw outer border boundary lines of the world
+                    val bLeft = (0.0 - playerX) * radarScale + centerX
+                    val bTop = (0.0 - playerY) * radarScale + centerY
+                    val bRight = (mapSize - playerX) * radarScale + centerX
+                    val bBottom = (mapSize - playerY) * radarScale + centerY
+
+                    // Out of bounds markers
+                    drawLine(
+                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        start = Offset(bLeft.toFloat(), bTop.toFloat()),
+                        end = Offset(bRight.toFloat(), bTop.toFloat()),
+                        strokeWidth = 2f
+                    )
+                    drawLine(
+                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        start = Offset(bRight.toFloat(), bTop.toFloat()),
+                        end = Offset(bRight.toFloat(), bBottom.toFloat()),
+                        strokeWidth = 2f
+                    )
+                    drawLine(
+                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        start = Offset(bRight.toFloat(), bBottom.toFloat()),
+                        end = Offset(bLeft.toFloat(), bBottom.toFloat()),
+                        strokeWidth = 2f
+                    )
+                    drawLine(
+                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        start = Offset(bLeft.toFloat(), bBottom.toFloat()),
+                        end = Offset(bLeft.toFloat(), bTop.toFloat()),
+                        strokeWidth = 2f
+                    )
+
+                    // Draw buildings / obstacles in rotated view
+                    mapObstacles.forEach { obs ->
+                        val ox = obs.rect.center.x.toDouble()
+                        val oy = obs.rect.center.y.toDouble()
+
+                        val dx = ox - playerX
+                        val dy = oy - playerY
+                        val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+
+                        if (dist < 600.0) {
+                            val oLeft = (obs.rect.left - playerX) * radarScale + centerX
+                            val oTop = (obs.rect.top - playerY) * radarScale + centerY
+                            val oRight = (obs.rect.right - playerX) * radarScale + centerX
+                            val oBottom = (obs.rect.bottom - playerY) * radarScale + centerY
+
+                            val colorBase = if (obs.type == ObstacleType.BUILDING) Color(0xFF334155) else Color(0xFF064E3B)
+                            val borderCol = if (obs.type == ObstacleType.BUILDING) Color(0xFF475569) else Color(0xFF10B981)
+
+                            // Drawn rotated flat rect
+                            drawRoundRect(
+                                color = colorBase.copy(alpha = 0.6f),
+                                topLeft = Offset(oLeft.toFloat(), oTop.toFloat()),
+                                size = Size((oRight - oLeft).toFloat(), (oBottom - oTop).toFloat()),
+                                cornerRadius = CornerRadius(4f, 4f)
+                            )
+                            drawRoundRect(
+                                color = borderCol.copy(alpha = 0.8f),
+                                topLeft = Offset(oLeft.toFloat(), oTop.toFloat()),
+                                size = Size((oRight - oLeft).toFloat(), (oBottom - oTop).toFloat()),
+                                cornerRadius = CornerRadius(4f, 4f),
+                                style = Stroke(width = 1f)
+                            )
+                        }
+                    }
+
+                    // 2. DRAW ITEMS (Coins, Nitro, Repair items)
+                    state.items.forEach { item ->
+                        if (!item.isCollected) {
+                            val dx = item.x - playerX
+                            val dy = item.y - playerY
+                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+
+                            if (dist < 500) {
+                                val ix = dx * radarScale + centerX
+                                val iy = dy * radarScale + centerY
+
+                                val itemColor = when (item.type) {
+                                    ItemType.COIN -> Color(0xFFFACC15) // GOLD
+                                    ItemType.REPAIR -> Color(0xFF10B981) // NEON GREEN
+                                    ItemType.NITRO -> Color(0xFF00D2FF) // ELECTRIC NITRO
+                                }
+
+                                drawCircle(
+                                    color = itemColor,
+                                    radius = 4f,
+                                    center = Offset(ix.toFloat(), iy.toFloat())
+                                )
+                                drawCircle(
+                                    color = itemColor.copy(alpha = 0.3f),
+                                    radius = 8f,
+                                    center = Offset(ix.toFloat(), iy.toFloat()),
+                                    style = Stroke(width = 1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. DRAW COPS (Red/blue beacons blinking)
+                    state.copCars.forEach { cop ->
+                        val dx = cop.x - playerX
+                        val dy = cop.y - playerY
+                        val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+
+                        if (dist < 600) {
+                            val cx = dx * radarScale + centerX
+                            val cy = dy * radarScale + centerY
+
+                            // Blink effect
+                            val copBlink = (System.currentTimeMillis() / 250) % 2 == 0L
+                            val copColor = if (copBlink) Color(0xFFEF4444) else Color(0xFF3B82F6)
+
+                            // Cop Triangle pointing standard
+                            val copPath = Path().apply {
+                                moveTo(cx.toFloat(), cy.toFloat() - 6f)
+                                lineTo(cx.toFloat() - 5f, cy.toFloat() + 5f)
+                                lineTo(cx.toFloat() + 5f, cy.toFloat() + 5f)
+                                close()
+                            }
+                            drawPath(copPath, copColor)
+                            drawCircle(
+                                color = copColor.copy(alpha = 0.35f),
+                                radius = 9f,
+                                center = Offset(cx.toFloat(), cy.toFloat()),
+                                style = Stroke(width = 1.5f)
+                            )
+                        }
+                    }
+                }
+
+                // 4. DRAW PLAYER CAR MARKER (at Center of radar, looking UP)
+                val arrowPath = Path().apply {
+                    moveTo(centerX, centerY - 8f)  // Tip pointing up
+                    lineTo(centerX - 6f, centerY + 7f) // Bottom left
+                    lineTo(centerX, centerY + 3f)  // Tail inset
+                    lineTo(centerX + 6f, centerY + 7f) // Bottom right
+                    close()
+                }
+                // Beautiful user vehicle gradient pointer
+                drawPath(
+                    path = arrowPath,
+                    color = Color.White
+                )
+                // Pulse halo around the player
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.25f),
+                    radius = 12f,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 1f)
+                )
+
+                // 5. COMPASS TEXT INDICATORS (North, East, South, West)
+                val northRad = -playerAngle - Math.PI / 2.0
+                val nx = (centerX + (radius - 10f) * cos(northRad)).toFloat()
+                val ny = (centerY + (radius - 10f) * sin(northRad)).toFloat()
+                drawCircle(
+                    color = Color(0xFFEF4444), // Crimson North
+                    radius = 3.5f,
+                    center = Offset(nx, ny)
+                )
+                
+                val eastRad = -playerAngle
+                val ex = (centerX + (radius - 10f) * cos(eastRad)).toFloat()
+                val ey = (centerY + (radius - 10f) * sin(eastRad)).toFloat()
+                drawCircle(
+                    color = Color(0xFF10B981),
+                    radius = 2f,
+                    center = Offset(ex, ey)
+                )
+
+                val westRad = -playerAngle + Math.PI
+                val wx = (centerX + (radius - 10f) * cos(westRad)).toFloat()
+                val wy = (centerY + (radius - 10f) * sin(westRad)).toFloat()
+                drawCircle(
+                    color = Color(0xFF10B981),
+                    radius = 2f,
+                    center = Offset(wx, wy)
+                )
+
+                val southRad = -playerAngle + Math.PI / 2.0
+                val sx = (centerX + (radius - 10f) * cos(southRad)).toFloat()
+                val sy = (centerY + (radius - 10f) * sin(southRad)).toFloat()
+                drawCircle(
+                    color = Color(0xFF3B82F6),
+                    radius = 2f,
+                    center = Offset(sx, sy)
+                )
+            }
+
+            // Top-left mini overlay for coordinates & compass letter
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val speedKmh = (state.playerSpeed * 15.0).toInt()
+                Text(
+                    text = "X: ${playerX.toInt()} | Y: ${playerY.toInt()}",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF94A3B8),
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.2.sp
+                )
+                Text(
+                    text = "GPS: СИБИРЬ | $speedKmh КМ/Ч",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF10B981),
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
 }
 
