@@ -774,9 +774,9 @@ fun MainMenuScreen(
     }
 
     // ==========================================
-    // MASSIVE ROBUST ADMIN PANEL DIALOG (mikha_q ONLY)
+    // MASSIVE ROBUST ADMIN PANEL DIALOG
     // ==========================================
-    if (showAdminDialog && carConfig.nickname == "mikha_q") {
+    if (showAdminDialog) {
         var customMoneyText by remember { mutableStateOf("") }
         var adminTrigger by remember { mutableStateOf(0) } // For local reactive state force update
 
@@ -806,7 +806,7 @@ fun MainMenuScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "СЕССИЯ: АКТИВНА [ПОЛЬЗОВАТЕЛЬ: mikha_q]",
+                        text = "СЕССИЯ: АКТИВНА [ВХОД: ${carConfig.nickname}]",
                         fontFamily = FontFamily.Monospace,
                         color = Color(0xFF6B7280),
                         fontSize = 10.sp,
@@ -1549,40 +1549,65 @@ fun MainMenuScreen(
     if (showAdminEntranceDialog) {
         AlertDialog(
             onDismissRequest = { showAdminEntranceDialog = false },
-            containerColor = Color(0xFF0F172A),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.border(1.dp, Color(0xFF10B981), RoundedCornerShape(12.dp)),
+            containerColor = Color(0xFF0B132B), // Secure cyber vault navy black
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.border(2.dp, Color(0xFF10B981), RoundedCornerShape(18.dp)),
             title = {
-                Text(
-                    text = "🔑 ВХОД АДМИНИСТРАТОРА",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "🛡️",
+                        fontSize = 22.sp
+                    )
+                    Column {
+                        Text(
+                            text = "СИСТЕМА БЕЗОПАСНОСТИ",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "ФЕДЕРАЛЬНЫЙ ТЕРМИНАЛ ДПС",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFF10B981)
+                        )
+                    }
+                }
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Введи имя администратора («mikha_q») и секретный шифр безопасности ДПС.",
+                        text = "Для получения полного контроля над трафиком, балансом и физикой введите имя оператора и секретный пропуск безопасности.",
                         fontSize = 11.sp,
-                        color = Color(0xFFA0A0AB)
+                        color = Color(0xFF94A3B8),
+                        lineHeight = 15.sp
                     )
 
                     // Nickname field
                     OutlinedTextField(
                         value = adminEntranceUser,
                         onValueChange = { adminEntranceUser = it },
-                        label = { Text("Имя Пользователя", fontSize = 11.sp) },
-                        colors = TextFieldDefaults.colors(
+                        label = { Text("Имя Оператора / Ник", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                        colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF10B981),
+                            unfocusedBorderColor = Color(0xFF334155),
                             focusedContainerColor = Color(0xFF020617),
                             unfocusedContainerColor = Color(0xFF020617)
                         ),
                         singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -1590,14 +1615,17 @@ fun MainMenuScreen(
                     OutlinedTextField(
                         value = adminEntrancePass,
                         onValueChange = { adminEntrancePass = it },
-                        label = { Text("Пароль", fontSize = 11.sp) },
-                        colors = TextFieldDefaults.colors(
+                        label = { Text("Ключ Допуска", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                        colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF10B981),
+                            unfocusedBorderColor = Color(0xFF334155),
                             focusedContainerColor = Color(0xFF020617),
                             unfocusedContainerColor = Color(0xFF020617)
                         ),
                         singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -1605,17 +1633,28 @@ fun MainMenuScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x1F22C55E))
-                            .padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x1510B981))
+                            .border(1.dp, Color(0xFF10B981).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(10.dp)
                     ) {
-                        Text(
-                            text = "💡 ПОДСКАЗКА ПАРОЛЯ:\nШифр безопасности: mikha_pass_2026",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4ADE80),
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "🔑 АВАРИЙНЫЙ ШИФР ВОССТАНОВЛЕНИЯ:",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF34D399),
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "mikha_pass_2026",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 2.sp
+                            )
+                        }
                     }
                 }
             },
@@ -1631,14 +1670,15 @@ fun MainMenuScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(40.dp)
                 ) {
-                    Text("ПОДТВЕРДИТЬ", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    Text("ПОДТВЕРДИТЬ ДОСТУП", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAdminEntranceDialog = false }) {
-                    Text("ОТМЕНА", color = Color.Gray)
+                    Text("ОТМЕНА", color = Color(0xFF64748B), fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                 }
             }
         )

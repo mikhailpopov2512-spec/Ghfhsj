@@ -114,8 +114,6 @@ fun GameScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(slateBG)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         // CASE: Render BUSTED modal overlay
         if (state.status == GameStatus.BUSTED) {
@@ -223,13 +221,60 @@ fun GameScreen(
                     center = Offset(viewW * 0.75f, horizonY * 0.4f)
                 )
 
-                // 2. Draw Ground Plane
+                // 2. Draw Ground Plane with Volumetric Minecraft Checkered Voxel Landscape
                 val groundColor = if (isWinter) Color(0xFFE2E8F0) else Color(0xFF131E12)
                 drawRect(
                     color = groundColor,
                     topLeft = Offset(0f, horizonY),
                     size = Size(viewW, viewH - horizonY)
                 )
+
+                // Render dynamic perspective-projected Minecraft blocks
+                val blockSize = 180.0
+                val gridRadius = 11
+                val centerBlockX = (px / blockSize).toInt()
+                val centerBlockY = (py / blockSize).toInt()
+
+                for (dx in -gridRadius..gridRadius) {
+                    for (dy in -gridRadius..gridRadius) {
+                        val bx = centerBlockX + dx
+                        val by = centerBlockY + dy
+
+                        // Alternating green / white grass tones
+                        val isEven = (bx + by) % 2 == 0
+                        val cellColor = if (isWinter) {
+                            if (isEven) Color(0xFFF8FAFC) else Color(0xFFE2E8F0)
+                        } else {
+                            if (isEven) Color(0xFF166534) else Color(0xFF14532D)
+                        }
+
+                        val wx1 = bx * blockSize
+                        val wy1 = by * blockSize
+                        val wx2 = wx1 + blockSize
+                        val wy2 = wy1 + blockSize
+
+                        val p1 = projectGround(wx1, wy1, 0.0)
+                        val p2 = projectGround(wx2, wy1, 0.0)
+                        val p3 = projectGround(wx2, wy2, 0.0)
+                        val p4 = projectGround(wx1, wy2, 0.0)
+
+                        if (p1 != null && p2 != null && p3 != null && p4 != null) {
+                            val path = Path().apply {
+                                moveTo(p1.x, p1.y)
+                                lineTo(p2.x, p2.y)
+                                lineTo(p3.x, p3.y)
+                                lineTo(p4.x, p4.y)
+                                close()
+                            }
+                            drawPath(path, cellColor)
+
+                            // Subtle 3D grid line border
+                            val borderCol = if (isWinter) Color(0x1F94A3B8) else Color(0x1F22C55E)
+                            drawPath(path, borderCol, style = Stroke(width = 1.0f))
+                        }
+                    }
+                }
+
 
                 // Draw perspective dirt patch stripes if on ground
                 if (!isWinter) {
@@ -462,21 +507,43 @@ fun GameScreen(
                                     }
                                 }
                                 
-                                // Draw lower foliage level
+                                // Draw lower foliage level as a stylized voxel block
                                 if (topPt != null) {
-                                    drawCircle(
-                                        color = if (isBirch) Color(0xFF22C55E) else Color(0xFF14532D), // Birch: bright green, Pine: deep forest pine green
-                                        radius = crownR1.coerceIn(3.0f, 130.0f),
-                                        center = topPt
+                                    val r1 = crownR1.coerceIn(3.0f, 130.0f)
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF1E3F20) else Color(0xFF0F2615), // Dark shadow base
+                                        topLeft = Offset(topPt.x - r1, topPt.y - r1),
+                                        size = Size(r1 * 2f, r1 * 2f)
+                                    )
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF2E7D32) else Color(0xFF155E27), // Mid canopy
+                                        topLeft = Offset(topPt.x - r1 * 0.85f, topPt.y - r1 * 0.85f),
+                                        size = Size(r1 * 1.7f, r1 * 1.7f)
+                                    )
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF4CAF50) else Color(0xFF2E7D32), // Highlight canopy
+                                        topLeft = Offset(topPt.x - r1 * 0.6f, topPt.y - r1 * 0.6f),
+                                        size = Size(r1 * 1.2f, r1 * 1.2f)
                                     )
                                 }
                                 
-                                // Draw upper foliage level
+                                // Draw upper foliage level as a stylized voxel block
                                 if (peakPt != null) {
-                                    drawCircle(
-                                        color = if (isBirch) Color(0xFF4ADE80) else Color(0xFF16A34A), // Birch: lime green, Pine: pure green
-                                        radius = crownR2.coerceIn(2.0f, 95.0f),
-                                        center = peakPt
+                                    val r2 = crownR2.coerceIn(2.0f, 95.0f)
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF2E7D32) else Color(0xFF155E27),
+                                        topLeft = Offset(peakPt.x - r2, peakPt.y - r2),
+                                        size = Size(r2 * 2f, r2 * 2f)
+                                    )
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF4CAF50) else Color(0xFF2E7D32),
+                                        topLeft = Offset(peakPt.x - r2 * 0.8f, peakPt.y - r2 * 0.8f),
+                                        size = Size(r2 * 1.6f, r2 * 1.6f)
+                                    )
+                                    drawRect(
+                                        color = if (isBirch) Color(0xFF81C784) else Color(0xFF4CAF50),
+                                        topLeft = Offset(peakPt.x - r2 * 0.5f, peakPt.y - r2 * 0.5f),
+                                        size = Size(r2 * 1.0f, r2 * 1.0f)
                                     )
                                 }
                             }
@@ -1994,7 +2061,8 @@ fun GameScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -2441,6 +2509,7 @@ fun GameScreen(
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(16.dp)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
