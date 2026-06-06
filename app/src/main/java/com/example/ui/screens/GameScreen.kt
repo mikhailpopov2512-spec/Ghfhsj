@@ -52,6 +52,7 @@ fun GameScreen(
 
     var cameraViewMode by remember { mutableStateOf(0) } // 0 = 3D Chase, 1 = 3D Cockpit/Interior, 2 = 2D Topdown
     val is3DView = cameraViewMode < 2
+    var radarZoomFactor by remember { mutableStateOf(1.0f) } // 1.0 = x1 close, 0.5 = x2 mid, 0.22 = x5 overview
 
     // Vibrant Palette Theme Colors
     val slateBG = Color(0xFF0F172A)
@@ -2587,25 +2588,33 @@ fun GameScreen(
         }
 
         // 3D holographic rotating Radar Mini-map (tracks user rotation, obstacles, cops, items in real-time)
+        // Click to toggle zoom level: Close (x1), Medium (x2), Wide-Overview (x5)
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 16.dp, top = 20.dp)
-                .size(145.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xD9060B18)) // Cyber launcher theme dark glass
+                .size(150.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xE6060B18)) // Cyber launcher theme dark glass
                 .border(
                     BorderStroke(
                         1.5.dp,
                         Brush.linearGradient(
                             listOf(
-                                Color(0xFF3B82F6), // Blue
-                                Color(0xFF10B981)  // Green Neon
+                                Color(0xFF3B82F6), // Sci-fi Blue
+                                Color(0xFF10B981)  // Neon Green
                             )
                         )
                     ),
-                    RoundedCornerShape(20.dp)
+                    RoundedCornerShape(22.dp)
                 )
+                .clickable {
+                    radarZoomFactor = when (radarZoomFactor) {
+                        1.0f -> 0.5f      // x2 zoom level
+                        0.5f -> 0.22f     // x5 wide overview
+                        else -> 1.0f      // back to x1 close range
+                    }
+                }
         ) {
             val playerX = state.playerX
             val playerY = state.playerY
@@ -2615,7 +2624,7 @@ fun GameScreen(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(4.dp)
+                    .padding(5.dp)
             ) {
                 val radius = size.minDimension / 2f
                 val centerX = size.width / 2f
@@ -2623,30 +2632,47 @@ fun GameScreen(
 
                 // Draw radar background grids / sonar rings
                 drawCircle(
-                    color = Color(0xFF1E293B).copy(alpha = 0.35f),
+                    color = Color(0xFF1E293B).copy(alpha = 0.45f),
                     radius = radius,
                     center = Offset(centerX, centerY)
                 )
                 // Sonar concentric rings
                 drawCircle(
-                    color = Color(0xFF3B82F6).copy(alpha = 0.15f),
+                    color = Color(0xFF3B82F6).copy(alpha = 0.20f),
                     radius = radius * 0.7f,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1f)
                 )
                 drawCircle(
-                    color = Color(0xFF3B82F6).copy(alpha = 0.10f),
+                    color = Color(0xFF3B82F6).copy(alpha = 0.12f),
                     radius = radius * 0.4f,
                     center = Offset(centerX, centerY),
                     style = Stroke(width = 1f)
                 )
+
+                // Cosmetic scientific compass tick marks on the outer rim
+                for (angleDeg in 0 until 360 step 30) {
+                    val angleRad = Math.toRadians(angleDeg.toDouble())
+                    val tickLength = if (angleDeg % 90 == 0) 8f else 4f
+                    val tickColor = if (angleDeg % 90 == 0) Color(0xFF10B981).copy(alpha = 0.5f) else Color(0xFF3B82F6).copy(alpha = 0.3f)
+                    val startX = (centerX + (radius - tickLength) * cos(angleRad)).toFloat()
+                    val startY = (centerY + (radius - tickLength) * sin(angleRad)).toFloat()
+                    val endX = (centerX + radius * cos(angleRad)).toFloat()
+                    val endY = (centerY + radius * sin(angleRad)).toFloat()
+                    drawLine(
+                        color = tickColor,
+                        start = Offset(startX, startY),
+                        end = Offset(endX, endY),
+                        strokeWidth = 1.5f
+                    )
+                }
 
                 // Sweep animation factor
                 val sweepingAngle = ((System.currentTimeMillis() / 4L) % 360).toFloat()
                 rotate(degrees = sweepingAngle, pivot = Offset(centerX, centerY)) {
                     drawArc(
                         brush = Brush.sweepGradient(
-                            colors = listOf(Color(0xFF3B82F6).copy(alpha = 0.25f), Color.Transparent)
+                            colors = listOf(Color(0xFF10B981).copy(alpha = 0.25f), Color.Transparent)
                         ),
                         startAngle = 0f,
                         sweepAngle = 90f,
@@ -2658,22 +2684,22 @@ fun GameScreen(
 
                 // Orthogonal axes (crosshair)
                 drawLine(
-                    color = Color(0xFF64748B).copy(alpha = 0.15f),
+                    color = Color(0xFF64748B).copy(alpha = 0.20f),
                     start = Offset(centerX - radius, centerY),
                     end = Offset(centerX + radius, centerY),
                     strokeWidth = 1f
                 )
                 drawLine(
-                    color = Color(0xFF64748B).copy(alpha = 0.15f),
+                    color = Color(0xFF64748B).copy(alpha = 0.20f),
                     start = Offset(centerX, centerY - radius),
                     end = Offset(centerX, centerY + radius),
                     strokeWidth = 1f
                 )
 
-                // Scaling factor for radar map viewport. Let's show surroundings within 400 world units!
-                val radarScale = radius / 400f
+                // Scaling factor for radar map viewport. Dynamic Zoom factor multiplies!
+                val radarScale = (radius / 400f) * radarZoomFactor
 
-                // 1. DRAW ROTATED MAP SURROUNDINGS (obstacles, etc.)
+                // 1. DRAW ROTATED MAP SURROUNDINGS (obstacles, boundaries, etc.)
                 // Rotates the entire drawing scope so player heading matches screen UP!
                 val rotDegrees = Math.toDegrees(-playerAngle - Math.PI / 2.0).toFloat()
 
@@ -2684,30 +2710,30 @@ fun GameScreen(
                     val bRight = (mapSize - playerX) * radarScale + centerX
                     val bBottom = (mapSize - playerY) * radarScale + centerY
 
-                    // Out of bounds markers
+                    // Out of bounds red emergency boundary
                     drawLine(
-                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        color = Color(0xFFEF4444).copy(alpha = 0.45f),
                         start = Offset(bLeft.toFloat(), bTop.toFloat()),
                         end = Offset(bRight.toFloat(), bTop.toFloat()),
-                        strokeWidth = 2f
+                        strokeWidth = 2.5f
                     )
                     drawLine(
-                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        color = Color(0xFFEF4444).copy(alpha = 0.45f),
                         start = Offset(bRight.toFloat(), bTop.toFloat()),
                         end = Offset(bRight.toFloat(), bBottom.toFloat()),
-                        strokeWidth = 2f
+                        strokeWidth = 2.5f
                     )
                     drawLine(
-                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        color = Color(0xFFEF4444).copy(alpha = 0.45f),
                         start = Offset(bRight.toFloat(), bBottom.toFloat()),
                         end = Offset(bLeft.toFloat(), bBottom.toFloat()),
-                        strokeWidth = 2f
+                        strokeWidth = 2.5f
                     )
                     drawLine(
-                        color = Color(0xFFEF4444).copy(alpha = 0.4f),
+                        color = Color(0xFFEF4444).copy(alpha = 0.45f),
                         start = Offset(bLeft.toFloat(), bBottom.toFloat()),
                         end = Offset(bLeft.toFloat(), bTop.toFloat()),
-                        strokeWidth = 2f
+                        strokeWidth = 2.5f
                     )
 
                     // Draw buildings / obstacles in rotated view
@@ -2719,28 +2745,30 @@ fun GameScreen(
                         val dy = oy - playerY
                         val dist = kotlin.math.sqrt(dx * dx + dy * dy)
 
-                        if (dist < 600.0) {
+                        // Adapt visibility field depending on current zoom
+                        val visibilityRange = 700.0 / radarZoomFactor
+                        if (dist < visibilityRange) {
                             val oLeft = (obs.rect.left - playerX) * radarScale + centerX
                             val oTop = (obs.rect.top - playerY) * radarScale + centerY
                             val oRight = (obs.rect.right - playerX) * radarScale + centerX
                             val oBottom = (obs.rect.bottom - playerY) * radarScale + centerY
 
                             val colorBase = if (obs.type == ObstacleType.BUILDING) Color(0xFF334155) else Color(0xFF064E3B)
-                            val borderCol = if (obs.type == ObstacleType.BUILDING) Color(0xFF475569) else Color(0xFF10B981)
+                            val borderCol = if (obs.type == ObstacleType.BUILDING) Color(0xFF64748B) else Color(0xFF10B981)
 
                             // Drawn rotated flat rect
                             drawRoundRect(
-                                color = colorBase.copy(alpha = 0.6f),
+                                color = colorBase.copy(alpha = 0.65f),
                                 topLeft = Offset(oLeft.toFloat(), oTop.toFloat()),
                                 size = Size((oRight - oLeft).toFloat(), (oBottom - oTop).toFloat()),
                                 cornerRadius = CornerRadius(4f, 4f)
                             )
                             drawRoundRect(
-                                color = borderCol.copy(alpha = 0.8f),
+                                color = borderCol.copy(alpha = 0.85f),
                                 topLeft = Offset(oLeft.toFloat(), oTop.toFloat()),
                                 size = Size((oRight - oLeft).toFloat(), (oBottom - oTop).toFloat()),
                                 cornerRadius = CornerRadius(4f, 4f),
-                                style = Stroke(width = 1f)
+                                style = Stroke(width = 1.2f)
                             )
                         }
                     }
@@ -2752,7 +2780,7 @@ fun GameScreen(
                             val dy = item.y - playerY
                             val dist = kotlin.math.sqrt(dx * dx + dy * dy)
 
-                            if (dist < 500) {
+                            if (dist < (600 / radarZoomFactor)) {
                                 val ix = dx * radarScale + centerX
                                 val iy = dy * radarScale + centerY
 
@@ -2764,14 +2792,14 @@ fun GameScreen(
 
                                 drawCircle(
                                     color = itemColor,
-                                    radius = 4f,
+                                    radius = 4.5f,
                                     center = Offset(ix.toFloat(), iy.toFloat())
                                 )
                                 drawCircle(
-                                    color = itemColor.copy(alpha = 0.3f),
-                                    radius = 8f,
+                                    color = itemColor.copy(alpha = 0.35f),
+                                    radius = 8.5f,
                                     center = Offset(ix.toFloat(), iy.toFloat()),
-                                    style = Stroke(width = 1f)
+                                    style = Stroke(width = 1.2f)
                                 )
                             }
                         }
@@ -2783,25 +2811,25 @@ fun GameScreen(
                         val dy = cop.y - playerY
                         val dist = kotlin.math.sqrt(dx * dx + dy * dy)
 
-                        if (dist < 600) {
+                        if (dist < (700 / radarZoomFactor)) {
                             val cx = dx * radarScale + centerX
                             val cy = dy * radarScale + centerY
 
                             // Blink effect
-                            val copBlink = (System.currentTimeMillis() / 250) % 2 == 0L
+                            val copBlink = (System.currentTimeMillis() / 200) % 2 == 0L
                             val copColor = if (copBlink) Color(0xFFEF4444) else Color(0xFF3B82F6)
 
                             // Cop Triangle pointing standard
                             val copPath = Path().apply {
-                                moveTo(cx.toFloat(), cy.toFloat() - 6f)
-                                lineTo(cx.toFloat() - 5f, cy.toFloat() + 5f)
-                                lineTo(cx.toFloat() + 5f, cy.toFloat() + 5f)
+                                moveTo(cx.toFloat(), cy.toFloat() - 7f)
+                                lineTo(cx.toFloat() - 6f, cy.toFloat() + 6f)
+                                lineTo(cx.toFloat() + 6f, cy.toFloat() + 6f)
                                 close()
                             }
                             drawPath(copPath, copColor)
                             drawCircle(
-                                color = copColor.copy(alpha = 0.35f),
-                                radius = 9f,
+                                color = copColor.copy(alpha = 0.4f),
+                                radius = 10f,
                                 center = Offset(cx.toFloat(), cy.toFloat()),
                                 style = Stroke(width = 1.5f)
                             )
@@ -2809,43 +2837,46 @@ fun GameScreen(
                     }
                 }
 
-                // 4. DRAW PLAYER CAR MARKER (at Center of radar, looking UP)
+                // 4. DRAW PLAYER CAR MARKER (At center of radar looking UP)
                 val arrowPath = Path().apply {
-                    moveTo(centerX, centerY - 8f)  // Tip pointing up
-                    lineTo(centerX - 6f, centerY + 7f) // Bottom left
-                    lineTo(centerX, centerY + 3f)  // Tail inset
-                    lineTo(centerX + 6f, centerY + 7f) // Bottom right
+                    moveTo(centerX, centerY - 9f)  // Tip pointing up
+                    lineTo(centerX - 7f, centerY + 8f) // Bottom left
+                    lineTo(centerX, centerY + 4f)  // Tail inset
+                    lineTo(centerX + 7f, centerY + 8f) // Bottom right
                     close()
                 }
-                // Beautiful user vehicle gradient pointer
+                // Beautiful user vehicle white pointer
                 drawPath(
                     path = arrowPath,
                     color = Color.White
                 )
                 // Pulse halo around the player
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.25f),
-                    radius = 12f,
+                    color = Color.White.copy(alpha = 0.3f),
+                    radius = 13f,
                     center = Offset(centerX, centerY),
-                    style = Stroke(width = 1f)
+                    style = Stroke(width = 1.2f)
                 )
 
-                // 5. COMPASS TEXT INDICATORS (North, East, South, West)
+                // 5. COMPASS TEXT INDICATORS (N, E, S, W pointing real directions)
                 val northRad = -playerAngle - Math.PI / 2.0
-                val nx = (centerX + (radius - 10f) * cos(northRad)).toFloat()
-                val ny = (centerY + (radius - 10f) * sin(northRad)).toFloat()
-                drawCircle(
-                    color = Color(0xFFEF4444), // Crimson North
-                    radius = 3.5f,
-                    center = Offset(nx, ny)
-                )
-                
+                val nx = (centerX + (radius - 12f) * cos(northRad)).toFloat()
+                val ny = (centerY + (radius - 12f) * sin(northRad)).toFloat()
+                // North indicator is a beautiful stylized Crimson Arrowhead pointing outward
+                val nArrow = Path().apply {
+                    moveTo(nx + 5f * cos(northRad).toFloat(), ny + 5f * sin(northRad).toFloat())
+                    lineTo(nx + 4f * cos(northRad + 2.2).toFloat(), ny + 4f * sin(northRad + 2.2).toFloat())
+                    lineTo(nx + 4f * cos(northRad - 2.2).toFloat(), ny + 4f * sin(northRad - 2.2).toFloat())
+                    close()
+                }
+                drawPath(nArrow, Color(0xFFEF4444))
+
                 val eastRad = -playerAngle
                 val ex = (centerX + (radius - 10f) * cos(eastRad)).toFloat()
                 val ey = (centerY + (radius - 10f) * sin(eastRad)).toFloat()
                 drawCircle(
-                    color = Color(0xFF10B981),
-                    radius = 2f,
+                    color = Color.White.copy(alpha = 0.8f),
+                    radius = 2.5f,
                     center = Offset(ex, ey)
                 )
 
@@ -2853,8 +2884,8 @@ fun GameScreen(
                 val wx = (centerX + (radius - 10f) * cos(westRad)).toFloat()
                 val wy = (centerY + (radius - 10f) * sin(westRad)).toFloat()
                 drawCircle(
-                    color = Color(0xFF10B981),
-                    radius = 2f,
+                    color = Color.White.copy(alpha = 0.8f),
+                    radius = 2.5f,
                     center = Offset(wx, wy)
                 )
 
@@ -2863,7 +2894,7 @@ fun GameScreen(
                 val sy = (centerY + (radius - 10f) * sin(southRad)).toFloat()
                 drawCircle(
                     color = Color(0xFF3B82F6),
-                    radius = 2f,
+                    radius = 2.5f,
                     center = Offset(sx, sy)
                 )
             }
@@ -2872,19 +2903,24 @@ fun GameScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.88f))
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val speedKmh = (state.playerSpeed * 15.0).toInt()
+                val scaleText = when (radarZoomFactor) {
+                    1.0f -> "БЛИЗКО (x1)"
+                    0.5f -> "СРЕДНИЙ (x2)"
+                    else -> "ОБЗОР (x5)"
+                }
                 Text(
-                    text = "X: ${playerX.toInt()} | Y: ${playerY.toInt()}",
+                    text = "X: ${playerX.toInt()} | Y: ${playerY.toInt()} | $scaleText",
                     fontSize = 8.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF94A3B8),
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 0.2.sp
+                    letterSpacing = 0.1.sp
                 )
                 Text(
                     text = "GPS: СИБИРЬ | $speedKmh КМ/Ч",

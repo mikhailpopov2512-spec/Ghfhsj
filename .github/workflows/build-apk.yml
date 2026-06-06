@@ -25,6 +25,22 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Restore Debug Keystore from Base64
+      run: |
+        if [ -f debug.keystore.base64 ]; then
+          base64 -d debug.keystore.base64 > debug.keystore
+          echo "Debug Keystore restored successfully."
+        else
+          echo "No debug.keystore.base64 found, relying on local builder."
+        fi
+
+    - name: Prepare secrets file
+      run: |
+        if [ -f .env.example ] && [ ! -f .env ]; then
+          cp .env.example .env
+          echo "Prepared .env from .env.example"
+        fi
+
     - name: Ensure Gradle Wrapper is Executable
       run: |
         if [ ! -f gradlew ]; then
