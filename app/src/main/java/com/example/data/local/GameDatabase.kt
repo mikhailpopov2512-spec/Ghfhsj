@@ -2,46 +2,35 @@ package com.example.data.local
 
 import android.content.Context
 import androidx.room.*
-import com.example.data.model.CarConfig
-import com.example.data.model.ScoreRecord
+import com.example.data.model.PlayerStats
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface CarConfigDao {
-    @Query("SELECT * FROM car_config WHERE id = 1")
-    fun getCarConfig(): Flow<CarConfig?>
+interface PlayerStatsDao {
+    @Query("SELECT * FROM player_stats WHERE id = 1 LIMIT 1")
+    fun getStatsFlow(): Flow<PlayerStats?>
 
-    @Query("SELECT * FROM car_config WHERE id = 1")
-    suspend fun getCarConfigSync(): CarConfig?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun saveCarConfig(config: CarConfig)
-}
-
-@Dao
-interface ScoreRecordDao {
-    @Query("SELECT * FROM score_records ORDER BY timestamp DESC")
-    fun getAllScores(): Flow<List<ScoreRecord>>
+    @Query("SELECT * FROM player_stats WHERE id = 1 LIMIT 1")
+    suspend fun getStats(): PlayerStats?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertScore(score: ScoreRecord)
+    suspend fun insertOrUpdate(stats: PlayerStats)
 }
 
-@Database(entities = [CarConfig::class, ScoreRecord::class], version = 4, exportSchema = false)
+@Database(entities = [PlayerStats::class], version = 1, exportSchema = false)
 abstract class GameDatabase : RoomDatabase() {
-    abstract fun carConfigDao(): CarConfigDao
-    abstract fun scoreRecordDao(): ScoreRecordDao
+    abstract val dao: PlayerStatsDao
 
     companion object {
         @Volatile
         private var INSTANCE: GameDatabase? = null
 
-        fun getDatabase(context: Context): GameDatabase {
+        fun getInstance(context: Context): GameDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     GameDatabase::class.java,
-                    "car_chase_database"
+                    "carchase_db"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

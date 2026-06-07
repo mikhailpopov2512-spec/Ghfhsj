@@ -1,441 +1,218 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import android.widget.Toast
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.GameViewModel
 
 @Composable
 fun SettingsScreen(
     viewModel: GameViewModel,
-    onBackToMenu: () -> Unit
+    onBack: () -> Unit
 ) {
-    val carConfig by viewModel.carConfigState.collectAsState()
-
-    // Vibrant Palette Theme Colors
-    val slateBG = Color(0xFF0F172A)
-    val slateCard = Color(0xFF1E293B)
-    val blueAccent = Color(0xFF3B82F6)
-    val yellowGold = Color(0xFFFFD700)
-    val greenNeon = Color(0xFF10B981)
-    val orangeWarn = Color(0xFFF97316)
-    val redDanger = Color(0xFFEF4444)
+    val context = LocalContext.current
+    var isSoundEnabled by remember { mutableStateOf(true) }
+    var musicVolume by remember { mutableFloatStateOf(0.8f) }
+    var useSteeringWheel by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(slateBG)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            .background(Color(0xFF03050C))
     ) {
-        LazyColumn(
+        // High fidelity glossy liquid glass background image
+        Image(
+            painter = painterResource(id = R.drawable.img_launcher_glassbg),
+            contentDescription = "Liquid Glass Background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Backdrop tint overlays
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xCD03050C))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header Bar
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(
-                        onClick = onBackToMenu,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(slateCard)
-                            .border(1.dp, Color(0xFF334155), CircleShape)
-                            .testTag("settings_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-
-                    Text(
-                        text = "НАСТРОЙКИ РАЙОНА",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f).padding(end = 48.dp)
-                    )
-                }
-            }
-
-            // Description / Information Item
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = slateCard.copy(alpha = 0.6f)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Info",
-                            tint = blueAccent,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Конфигурируй физику, плотность патрулей ДПС, уровень тонировки стёкол и параметры дорожного полотна перед выездом в город.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF94A3B8),
-                            fontFamily = FontFamily.SansSerif,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
-            }
-
-            // Category 1: WORLD / CITY CONFIG
-            item {
-                CategoryHeading(text = "ПАРАМЕТРЫ ОКРУЖАЮЩЕГО МИРА")
-            }
-
-            // Map Size Selector
-            item {
-                SegmentedSelector(
-                    title = "РАЗМЕР КАРТЫ ГОРОДА",
-                    subtitle = "Масштабирует площадь районов и количество гаражей",
-                    options = listOf("NORMAL" to "Нормальный", "BIG" to "Большой", "ULTRA" to "Ультра-Хаос"),
-                    selectedOption = carConfig.mapSizeSetting,
-                    onSelected = { viewModel.updateMapSize(it) },
-                    testTagPrefix = "map_size"
-                )
-            }
-
-            // Weather Target
-            item {
-                SegmentedSelector(
-                    title = "ПОГОДА / АТМОСФЕРА",
-                    subtitle = "Влияет на сцепление шин с асфальтом (заносы и скольжение)",
-                    options = listOf("OVERCAST" to "Пасмурно", "RAIN" to "Ливень", "SNOW" to "Снегопад"),
-                    selectedOption = carConfig.targetWeather,
-                    onSelected = { viewModel.updateWeatherFromSettings(it) },
-                    testTagPrefix = "weather"
-                )
-            }
-
-            // Traffic Density Selector (COP DENSITY)
-            item {
-                SegmentedSelectorInt(
-                    title = "ОБИЛИЕ БОТОВ ПАТРУЛЯ ДПС",
-                    subtitle = "Регулирует количество и частоту появления преследователей",
-                    options = listOf(1 to "Мало", 2 to "Обычный", 3 to "ЖЕСТЬ (Хаос)"),
-                    selectedOption = carConfig.copDensitySetting,
-                    onSelected = { viewModel.updateCopDensity(it) },
-                    testTagPrefix = "traffic_density"
-                )
-            }
-
-            // Category 2: ADVANCED VEHICLE TUNING / TINT & SUSPENSION
-            item {
-                CategoryHeading(text = "КОСМЕТИЧЕСКИЙ ТЮНИНГ И СТИЛЬ")
-            }
-
-            // Tint level selector
-            item {
-                SegmentedSelectorInt(
-                    title = "УРОВЕНЬ ТОНИРОВКИ СТЁКОЛ",
-                    subtitle = "Эстетика салона автомобиля и скрытность от патрулей",
-                    options = listOf(0 to "Без тонировки", 1 to "Только сзади", 2 to "В Хлам (В бункер!)"),
-                    selectedOption = carConfig.tintLevel,
-                    onSelected = { viewModel.updateTintLevel(it) },
-                    testTagPrefix = "tint_level"
-                )
-            }
-
-            // Suspension height selector
-            item {
-                SegmentedSelectorInt(
-                    title = "КЛИРЕНС ПОДВЕСКИ",
-                    subtitle = "Влияет на устойчивость в заносе крутых поворотов",
-                    options = listOf(0 to "Заниженная LADA-Low", 1 to "Заводской клиренс", 2 to "Высокий Вездеход"),
-                    selectedOption = carConfig.suspensionHeight,
-                    onSelected = { viewModel.updateSuspensionHeight(it) },
-                    testTagPrefix = "suspension_height"
-                )
-            }
-
-            // Neon Underglow Colors
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = slateCard),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "ЦВЕТ НЕОНОВОЙ ПОДСВЕТКИ ДНИЩА",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
-                            fontFamily = FontFamily.Monospace
-                        )
-
-                        val neons = listOf(
-                            0xFF10B981 to "Зеленый",
-                            0xFFEF4444 to "Пламя Red",
-                            0xFF3B82F6 to "Космос Blue",
-                            0xFFEC4899 to "Маджента",
-                            0xFFF97316 to "Оранж",
-                            0xFFEAB308 to "Янтарь"
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            neons.forEachIndexed { idx, item ->
-                                val hexVal = item.first
-                                val isSelected = carConfig.neonColorHex == hexVal
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(hexVal))
-                                        .border(
-                                            width = if (isSelected) 3.dp else 1.dp,
-                                            color = if (isSelected) Color.White else Color.Transparent,
-                                            shape = CircleShape
-                                        )
-                                        .clickable { viewModel.updateNeonColorHex(hexVal) }
-                                        .testTag("neon_color_select_$idx"),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(10.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.White)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Extra details / Footer Info
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+            // Header with Back Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x33FFFFFF))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(10.dp))
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Gear",
-                        tint = Color(0xFF475569),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Версия конфигурации: v4.2.0-LADA",
-                        fontSize = 11.sp,
-                        color = Color(0xFF475569),
-                        fontFamily = FontFamily.Monospace
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
-    }
-}
 
-@Composable
-fun CategoryHeading(text: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = text,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF3B82F6),
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.sp
-        )
-    }
-}
-
-@Composable
-fun SegmentedSelector(
-    title: String,
-    subtitle: String,
-    options: List<Pair<String, String>>,
-    selectedOption: String,
-    onSelected: (String) -> Unit,
-    testTagPrefix: String
-) {
-    val slateCard = Color(0xFF1E293B)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = slateCard),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Column {
                 Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    text = "⚙️ НАСТРОЙКИ СИМУЛЯТОРА",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Monospace
                 )
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = Color(0xFF475569),
-                    lineHeight = 15.sp
-                )
+
+                // Placeholder to balance
+                Spacer(modifier = Modifier.width(44.dp))
             }
 
-            Row(
+            // Settings Column Panel
+            Column(
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF0F172A)),
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0x660A0F1D))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(20.dp))
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
-                options.forEach { (optionKey, optionLabel) ->
-                    val isSelected = selectedOption == optionKey
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isSelected) Color(0xFF3B82F6) else Color.Transparent)
-                            .clickable { onSelected(optionKey) }
-                            .testTag("${testTagPrefix}_btn_$optionKey"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = optionLabel,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
-                            textAlign = TextAlign.Center
+                Text(
+                    text = "КОНФИГУРАЦИЯ СРЕДЫ",
+                    color = Color(0xFFFF007F),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                // Sound toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Звуковые эффекты", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Рев моторов Lada, сирены ДПС РФ", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
+
+                    Switch(
+                        checked = isSoundEnabled,
+                        onCheckedChange = {
+                            isSoundEnabled = it
+                            Toast.makeText(context, if (it) "Звук включен" else "Звук выключен", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF00F0FF),
+                            checkedTrackColor = Color(0xFF00F0FF).copy(alpha = 0.3f)
                         )
+                    )
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Music volume
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Громкость Радио", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("${(musicVolume * 100).toInt()}%", color = Color(0xFF00F0FF), fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(imageVector = Icons.Filled.MusicNote, contentDescription = "music", tint = Color.White.copy(alpha = 0.5f))
+                        
+                        Slider(
+                            value = musicVolume,
+                            onValueChange = { musicVolume = it },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFFFF007F),
+                                activeTrackColor = Color(0xFFFF007F),
+                                inactiveTrackColor = Color(0x33FFFFFF)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Icon(imageVector = Icons.Filled.VolumeUp, contentDescription = "loud", tint = Color.White.copy(alpha = 0.5f))
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun SegmentedSelectorInt(
-    title: String,
-    subtitle: String,
-    options: List<Pair<Int, String>>,
-    selectedOption: Int,
-    onSelected: (Int) -> Unit,
-    testTagPrefix: String
-) {
-    val slateCard = Color(0xFF1E293B)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = slateCard),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = Color(0xFF475569),
-                    lineHeight = 15.sp
-                )
-            }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF0F172A)),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                options.forEach { (optionKey, optionLabel) ->
-                    val isSelected = selectedOption == optionKey
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isSelected) Color(0xFF3B82F6) else Color.Transparent)
-                            .clickable { onSelected(optionKey) }
-                            .testTag("${testTagPrefix}_btn_$optionKey"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = optionLabel,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
-                            textAlign = TextAlign.Center
-                        )
+                // Controls configuration selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Виртуальный Руль управления", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Показывать круглый графический руль вместо стрелок", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
                     }
+
+                    Switch(
+                        checked = useSteeringWheel,
+                        onCheckedChange = {
+                            useSteeringWheel = it
+                            Toast.makeText(context, if (it) "Управление: Виртуальный Руль" else "Управление: Стрелки дрифта", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFFFF9F00),
+                            checkedTrackColor = Color(0xFFFF9F00).copy(alpha = 0.3f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Reset profiles button
+                Button(
+                    onClick = {
+                        viewModel.resetStats()
+                        Toast.makeText(context, "Все данные игры стерты!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E121F)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .border(BorderStroke(1.dp, Color(0xFFFF007F)), RoundedCornerShape(12.dp))
+                ) {
+                    Text("СБРОСИТЬ ВСЮ ИСТОРИЮ ИГРЫ", color = Color(0xFFFF007F), fontSize = 12.sp, fontWeight = FontWeight.Black)
                 }
             }
         }

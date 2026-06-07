@@ -4,107 +4,70 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.ui.GameViewModel
+import com.example.ui.Screen
 import com.example.ui.screens.GameScreen
 import com.example.ui.screens.MainMenuScreen
+import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.StatsScreen
 import com.example.ui.screens.TuningScreen
-import com.example.ui.screens.SettingsScreen
-import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.CarChaseTheme
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: GameViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 1. Enable Full-depth Edge to Edge visual curves
         enableEdgeToEdge()
+
         setContent {
-            MyApplicationTheme(dynamicColor = false) {
-                val navController = rememberNavController()
-                val gameViewModel: GameViewModel = viewModel()
+            CarChaseTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val currentScreen by viewModel.currentScreen.collectAsState()
 
-                val carConfigState by gameViewModel.carConfigState.collectAsState()
-                val scoreHistoryState by gameViewModel.scoreHistoryState.collectAsState()
-
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    NavHost(
-                        navController = navController,
-                        startDestination = "menu",
-                        modifier = Modifier.padding(innerPadding)
-                    ) {
-                        // Main Menu Screen
-                        composable("menu") {
-                            MainMenuScreen(
-                                carConfig = carConfigState,
-                                scoreHistory = scoreHistoryState,
-                                onStartGame = {
-                                    gameViewModel.initiateGameBoot()
-                                    navController.navigate("game")
-                                },
-                                onNavigateToGarage = {
-                                    navController.navigate("garage")
-                                },
-                                onNavigateToStats = {
-                                    navController.navigate("stats")
-                                },
-                                onNavigateToSettings = {
-                                    navController.navigate("settings")
-                                },
-                                onAddCheatCash = {
-                                    gameViewModel.addCheatCash()
-                                },
-                                viewModel = gameViewModel
+                    // AnimatedContent transition for glossy screen shifts
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+                        },
+                        label = "screen_navigation"
+                    ) { screen ->
+                        when (screen) {
+                            Screen.MainMenu -> MainMenuScreen(
+                                viewModel = viewModel,
+                                onNavigateToGarage = { viewModel.navigateTo(Screen.Tuning) },
+                                onNavigateToStats = { viewModel.navigateTo(Screen.Stats) },
+                                onNavigateToSettings = { viewModel.navigateTo(Screen.Settings) },
+                                onStartGame = { viewModel.navigateTo(Screen.Game) }
                             )
-                        }
-
-                        // Settings Panel Configuration Screen
-                        composable("settings") {
-                            SettingsScreen(
-                                viewModel = gameViewModel,
-                                onBackToMenu = {
-                                    navController.popBackStack()
-                                }
+                            Screen.Game -> GameScreen(
+                                viewModel = viewModel,
+                                onBack = { viewModel.navigateTo(Screen.MainMenu) }
                             )
-                        }
-
-                        // Racing Game Simulation Screen
-                        composable("game") {
-                            GameScreen(
-                                viewModel = gameViewModel,
-                                onBackToMenu = {
-                                    gameViewModel.exitToMenu()
-                                    navController.navigate("menu") {
-                                        popUpTo("menu") { inclusive = true }
-                                    }
-                                }
+                            Screen.Tuning -> TuningScreen(
+                                viewModel = viewModel,
+                                onBack = { viewModel.navigateTo(Screen.MainMenu) }
                             )
-                        }
-
-                        // Custom Car Garage / Tuning Screen
-                        composable("garage") {
-                            TuningScreen(
-                                viewModel = gameViewModel,
-                                onBackToMenu = {
-                                    navController.popBackStack()
-                                }
+                            Screen.Stats -> StatsScreen(
+                                viewModel = viewModel,
+                                onBack = { viewModel.navigateTo(Screen.MainMenu) }
                             )
-                        }
-
-                        // History Statistics / Achievements
-                        composable("stats") {
-                            StatsScreen(
-                                viewModel = gameViewModel,
-                                onBackToMenu = {
-                                    navController.popBackStack()
-                                }
+                            Screen.Settings -> SettingsScreen(
+                                viewModel = viewModel,
+                                onBack = { viewModel.navigateTo(Screen.MainMenu) }
                             )
                         }
                     }

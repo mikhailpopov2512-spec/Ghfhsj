@@ -1,249 +1,236 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.ScoreRecord
+import com.example.R
 import com.example.ui.GameViewModel
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun StatsScreen(
     viewModel: GameViewModel,
-    onBackToMenu: () -> Unit
+    onBack: () -> Unit
 ) {
-    val scoreHistory by viewModel.scoreHistoryState.collectAsState()
+    val stats by viewModel.playerStats.collectAsState()
 
-    // Vibrant Palette Theme Colors
-    val slateBG = Color(0xFF0F172A)
-    val slateCard = Color(0xFF1E293B)
-    val blueAccent = Color(0xFF3B82F6)
-    val yellowGold = Color(0xFFFFD700)
-    val greenNeon = Color(0xFF10B981)
-    val redDanger = Color(0xFFEF4444)
-
-    val totalRuns = scoreHistory.size
-    val maxScore = scoreHistory.maxOfOrNull { it.score } ?: 0
-    val totalEscapes = scoreHistory.count { it.escaped }
-    val maxHeat = scoreHistory.maxOfOrNull { it.heatLevel } ?: 1
-    val averageDuration = if (totalRuns > 0) scoreHistory.map { it.durationSeconds }.average().toInt() else 0
-
-    // Calculates driver class rank
-    val escapePercent = if (totalRuns > 0) (totalEscapes * 100) / totalRuns else 0
-    val driverRank = when {
-        totalRuns == 0 -> "СВЕЖИЙ КАДЕТ"
-        escapePercent >= 80 && maxScore > 5000 -> "ЛЕГЕНДАРНЫЙ ПАХАН"
-        escapePercent >= 65 -> "ОБЪЕЗДЧИК ДПС 1-Й СТЕПЕНИ"
-        escapePercent >= 40 -> "БЫВАЛЫЙ ДРИФТЕР"
-        else -> "ШОФЕР ШЕСТЕРКА"
-    }
+    // Gauge calculation for Operators rank progression
+    val xpProgress = stats.experience.toFloat() / 100f
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(slateBG)
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            .background(Color(0xFF03050C))
     ) {
-        LazyColumn(
+        // High fidelity glossy liquid glass background image
+        Image(
+            painter = painterResource(id = R.drawable.img_launcher_glassbg),
+            contentDescription = "Liquid Glass Background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        // Backdrop tint overlays
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Header bar
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(
-                        onClick = onBackToMenu,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(slateCard)
-                            .border(1.dp, Color(0xFF334155), CircleShape)
-                            .testTag("stats_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
+                .background(Color(0xCD03050C))
+        )
 
-                    pText(
-                        text = "ЛИЧНОЕ ДЕЛО ВОДИТЕЛЯ",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 1.sp
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x33FFFFFF))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(10.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
                     )
-                    
-                    Spacer(modifier = Modifier.width(48.dp)) // Equalizer spacer
                 }
+
+                Text(
+                    text = "🏅 РЕПУТАЦИЯ И РАНГИ",
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                // Placeholder to balance header
+                Spacer(modifier = Modifier.width(44.dp))
             }
 
-            // Driver profile license widget representing Russian Driver Mafia
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = slateCard),
-                    border = BorderStroke(2.dp, yellowGold),
-                    modifier = Modifier.fillMaxWidth()
+            // Stats Glass panels
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0x660A0F1D))
+                    .border(BorderStroke(1.2.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(20.dp))
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Rank Overview
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x3300F0FF))
+                            .border(BorderStroke(1.2.dp, Color(0xFF00F0FF)), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
-                            contentDescription = "Driver Badge",
-                            tint = yellowGold,
-                            modifier = Modifier.size(40.dp)
+                            contentDescription = "Crown Title",
+                            tint = Color(0xFF00F0FF),
+                            modifier = Modifier.size(32.dp)
                         )
+                    }
 
-                        pText(
-                            text = "КРИМИНАЛЬНАЯ ЛИЦЕНЗИЯ СССР",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color(0xFFA0A0AB),
-                            letterSpacing = 2.sp
-                        )
-
-                        pText(
-                            text = driverRank,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
+                    Column {
+                        Text(
+                            text = stats.nickname.uppercase(),
                             color = Color.White,
-                            textAlign = TextAlign.Center
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
                         )
-
-                        Row(
-                            modifier = Modifier
-                                .padding(top = 8.dp)
-                                .clip(RoundedCornerShape(30.dp))
-                                .background(redDanger.copy(alpha = 0.2f))
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            pText(
-                                text = "УСПЕШНЫЙ ПОБЕГ: $escapePercent%",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = redDanger
-                            )
-                        }
+                        Text(
+                            text = "РАНГ АВТОРИТЕТА: ${stats.rankTitle.uppercase()}",
+                            color = Color(0xFFFF007F),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black
+                        )
                     }
                 }
-            }
 
-            // Summary grid cards
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    DriverStatsCard(
-                        title = "ЛИЧНЫЙ РЕКОРД",
-                        value = "$maxScore ₽",
-                        accentColor = yellowGold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    DriverStatsCard(
-                        title = "ВСЕГО ПОГОНЬ",
-                        value = totalRuns.toString(),
-                        accentColor = blueAccent,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    DriverStatsCard(
-                        title = "МАКС РОЗЫСК",
-                        value = "Lvl $maxHeat",
-                        accentColor = redDanger,
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    val formattedDuration = String.format("%02d:%02d", averageDuration / 60, averageDuration % 60)
-                    DriverStatsCard(
-                        title = "СРЕДНЕЕ ВРЕМЯ",
-                        value = formattedDuration,
-                        accentColor = greenNeon,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // Historical Table logs
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    pText(
-                        text = "АРХИВНЫЕ ДЕЛА НА СЕВЕРЕ",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-
-            if (scoreHistory.isEmpty()) {
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = slateCard),
-                        modifier = Modifier.fillMaxWidth().height(150.dp),
-                        border = BorderStroke(1.dp, Color(0xFF334155))
+                // XP progress display
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            pText(
-                                text = "Архив пуст.\nУдирай от преследующих патрулей ДПС, чтобы оставить след в истории!",
-                                color = Color(0xFFA0A0AB),
-                                fontSize = 13.sp,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                        Text(
+                            text = "ПРОГРЕСС ДО СЛЕДУЮЩЕГО УРОВНЯ",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8),
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "${stats.experience} / 100 XP",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF00F0FF),
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
+
+                    LinearProgressIndicator(
+                        progress = { xpProgress },
+                        color = Color(0xFF00F0FF),
+                        trackColor = Color(0x331E293B),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
                 }
-            } else {
-                items(scoreHistory) { record ->
-                    HistoricalLogItem(record)
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Performance Scorecards grid
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ScoreStatCard(
+                        title = "МАКС. ДРИФТ-СЧЕТ",
+                        value = "${stats.highscore} pt",
+                        icon = Icons.Filled.TrendingUp,
+                        themeColor = Color(0xFF00FF66),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ScoreStatCard(
+                        title = "ВСЕГО ВЫЕЗДОВ",
+                        value = "${stats.totalRuns} выездов",
+                        icon = Icons.Filled.CardMembership,
+                        themeColor = Color(0xFFFF007F),
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-                item {
-                    Spacer(modifier = Modifier.height(40.dp))
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Criminal Milestones info list
+                Text(
+                    text = "ЗАДНИ КРИМИНАЛЬНЫЕ ДОСТИЖЕНИЯ",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AchievementItem(
+                        title = "🚀 ПЕРВЫЕ ДЕНЬГИ ДРИФТА",
+                        description = "Получите любой выигрыш баланса уходя от патрулей ДПС.",
+                        isUnlocked = stats.totalRuns > 0
+                    )
+                    AchievementItem(
+                        title = "🔧 УЛИЧНЫЙ ПРОКАЧИК",
+                        description = "Установите тюнинг двигателя Lada до 3-го уровня или выше.",
+                        isUnlocked = stats.engineLevel >= 3
+                    )
+                    AchievementItem(
+                        title = "⚡ СИБИРСКИЙ ШЕРИФ",
+                        description = "Достигните ранга Бригадир (уровень 7) или выше.",
+                        isUnlocked = stats.level >= 7
+                    )
                 }
             }
         }
@@ -251,127 +238,99 @@ fun StatsScreen(
 }
 
 @Composable
-fun DriverStatsCard(
+fun ScoreStatCard(
     title: String,
     value: String,
-    accentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    themeColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-        border = BorderStroke(1.dp, Color(0xFF334155)),
+    Column(
         modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            pText(
-                text = title,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFA0A0AB),
-                letterSpacing = 1.sp
-            )
-            pText(
-                text = value,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-                color = accentColor,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-    }
-}
-
-@Composable
-fun HistoricalLogItem(record: ScoreRecord) {
-    val redDanger = Color(0xFFEF4444)
-    val greenNeon = Color(0xFF10B981)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-        border = BorderStroke(1.dp, Color(0xFF334155)),
-        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x33FFFFFF))
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(16.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val statusText = if (record.escaped) "УШЕЛ" else "ПОЙМАН"
-                    val statusColor = if (record.escaped) greenNeon else redDanger
-                    pText(
-                        text = statusText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        color = statusColor
-                    )
-                    pText(
-                        text = "Очки: ${record.score}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                // Date stamp
-                val dateStr = remember(record.timestamp) {
-                    val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-                    sdf.format(Date(record.timestamp))
-                }
-                pText(
-                    text = dateStr,
-                    fontSize = 11.sp,
-                    color = Color(0xFFA0A0AB)
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                pText(
-                    text = "Розыск: Lvl ${record.heatLevel}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-                val durationStr = String.format("%02d:%02d", record.durationSeconds / 60, record.durationSeconds % 60)
-                pText(
-                    text = "Время: $durationStr",
-                    fontSize = 11.sp,
-                    color = Color(0xFFA0A0AB),
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+            Text(
+                text = title,
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = themeColor,
+                modifier = Modifier.size(16.dp)
+            )
         }
+
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
 @Composable
-private fun pText(
-    text: String,
-    color: Color = Color.White,
-    fontSize: androidx.compose.ui.unit.TextUnit = 14.sp,
-    fontWeight: FontWeight = FontWeight.Normal,
-    fontFamily: FontFamily = FontFamily.SansSerif,
-    textAlign: TextAlign = TextAlign.Start,
-    lineSpacingCheck: androidx.compose.ui.unit.TextUnit = 18.sp,
-    letterSpacing: androidx.compose.ui.unit.TextUnit = 0.sp
+fun AchievementItem(
+    title: String,
+    description: String,
+    isUnlocked: Boolean
 ) {
-    Text(
-        text = text,
-        color = color,
-        fontSize = fontSize,
-        fontWeight = fontWeight,
-        fontFamily = fontFamily,
-        textAlign = textAlign,
-        lineHeight = lineSpacingCheck,
-        letterSpacing = letterSpacing,
-        modifier = Modifier.padding(1.dp)
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isUnlocked) Color(0x1A00FF66) else Color(0x1AFFFFFF))
+            .border(
+                BorderStroke(
+                    width = 1.dp,
+                    color = if (isUnlocked) Color(0x3300FF66) else Color.White.copy(alpha = 0.1f)
+                ),
+                RoundedCornerShape(14.dp)
+            )
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(if (isUnlocked) Color(0x3300FF66) else Color(0x1AFFFFFF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (isUnlocked) "✔️" else "🔒",
+                fontSize = 14.sp
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (isUnlocked) Color.White else Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = Color.White.copy(alpha = 0.4f),
+                fontSize = 10.sp
+            )
+        }
+    }
 }
+
