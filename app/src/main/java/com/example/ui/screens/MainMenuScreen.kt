@@ -415,17 +415,142 @@ fun MainMenuScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = 80.dp),
+                .offset(y = 55.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            val currentMap by viewModel.selectedMapIndex.collectAsState()
+            
+            Text(
+                text = "⚡ МАРШРУТ СИБИРСКОГО ТЮНИНГА ⚡",
+                color = Color(0xFF00F0FF),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.5.sp
+            )
+            
+            Row(
+                modifier = Modifier
+                    .width(320.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0x77050914))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(16.dp))
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Snowy Irtysh
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (currentMap == 0) Color(0x3300F0FF) else Color.Transparent)
+                        .border(
+                            width = 1.2.dp,
+                            color = if (currentMap == 0) Color(0xFF00F0FF) else Color.Transparent,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .clickable { viewModel.selectMap(0) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("❄️", fontSize = 14.sp)
+                        Text(
+                            text = "ИРТЫШ",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "ДРИФТ x1.5",
+                            color = Color(0xFF00F0FF),
+                            fontSize = 7.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Baikal Highway
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (currentMap == 1) Color(0x22F59E0B) else Color.Transparent)
+                        .border(
+                            width = 1.2.dp,
+                            color = if (currentMap == 1) Color(0xFFF59E0B) else Color.Transparent,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .clickable { viewModel.selectMap(1) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🌲", fontSize = 14.sp)
+                        Text(
+                            text = "БАЙКАЛ",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "СКОРОСТЬ",
+                            color = Color(0xFFF59E0B),
+                            fontSize = 7.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Night Novosibirsk
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (currentMap == 2) Color(0x33FF007F) else Color.Transparent)
+                        .border(
+                            width = 1.2.dp,
+                            color = if (currentMap == 2) Color(0xFFFF007F) else Color.Transparent,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        .clickable { viewModel.selectMap(2) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🌃", fontSize = 14.sp)
+                        Text(
+                            text = "НГС КОРТ",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "МОНЕТЫ x2",
+                            color = Color(0xFFFF007F),
+                            fontSize = 7.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Button(
                 onClick = onStartGame,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .width(320.dp)
-                    .height(64.dp)
+                    .height(60.dp)
                     .testTag("play_game_button")
                     .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)
                     .background(

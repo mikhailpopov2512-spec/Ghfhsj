@@ -69,6 +69,7 @@ fun GameScreen(
 ) {
     val context = LocalContext.current
     val stats by viewModel.playerStats.collectAsState()
+    val selectedMap by viewModel.selectedMapIndex.collectAsState()
 
     // Game states
     var score by remember { mutableStateOf(0) }
@@ -80,6 +81,7 @@ fun GameScreen(
 
     // Player position coordinates (within virtual 0 to 400 track width)
     var playerX by remember { mutableStateOf(200f) }
+    var playerSlideVelocity by remember { mutableStateOf(0f) }
     var isSteeringLeft by remember { mutableStateOf(false) }
     var isSteeringRight by remember { mutableStateOf(false) }
     var isNitroActive by remember { mutableStateOf(false) }
@@ -165,22 +167,53 @@ fun GameScreen(
                 }
 
                 // 3. User steering movement values
+                val steerPower = if (selectedMap == 0) 0.8f else 1.5f
+                val maxVelocity = if (selectedMap == 0) 11f else 8.5f
+                val dragFactor = if (selectedMap == 0) 0.94f else 0.70f
+                
                 if (isSteeringLeft) {
-                    playerX = max(40f, playerX - 7.5f)
+                    playerSlideVelocity = max(-maxVelocity, playerSlideVelocity - steerPower)
+                } else if (isSteeringRight) {
+                    playerSlideVelocity = min(maxVelocity, playerSlideVelocity + steerPower)
+                } else {
+                    playerSlideVelocity *= dragFactor
                 }
-                if (isSteeringRight) {
-                    playerX = min(360f, playerX + 7.5f)
+                
+                val windDraft = if (selectedMap == 0) {
+                    Random.nextFloat() * 0.4f - 0.2f
+                } else {
+                    0f
                 }
+                
+                playerX = (playerX + playerSlideVelocity + windDraft).coerceIn(40f, 360f)
 
                 // 4. Update highway elements offset
                 roadOffset = (roadOffset + (speedKmh / 10f)) % 300f
-                score += (speedKmh / 20).coerceAtLeast(1)
+                val scoreMult = if (selectedMap == 0) 1.5f else 1.0f
+                score += ((speedKmh / 20).coerceAtLeast(1) * scoreMult).toInt()
 
                 // 5. Update spawned obstacle cop cars
                 copCars.forEachIndexed { idx, cop ->
                     // Cops drift down based on relative speed
-                    cop.y += (speedKmh / 25f) + cop.speedY
+                    val copSpeedFactor = when (selectedMap) {
+                        0 -> 0.80f  // Ice slipperiness
+                        1 -> 1.35f  // Baikal Highway rapid patrol pursuit
+                        else -> 1.0f
+                    }
+                    cop.y += ((speedKmh / 25f) + cop.speedY) * copSpeedFactor
                     cop.isFlasherRed = !cop.isFlasherRed // Alternate flashing cop lights
+
+                    // ACTIVE INTRUDER BLOCKING PURSUIT AI
+                    val copSteerAgility = when (selectedMap) {
+                        0 -> 0.012f // Snowy, slippery for the cops too!
+                        1 -> 0.045f // Super high performance Interceptors on Baikal! Strong chase!
+                        else -> 0.026f // Standard responsive pursuit
+                    }
+                    if (cop.y < 420f && cop.y > -50f) {
+                        val steerDelta = playerX - cop.x
+                        cop.x += steerDelta * copSteerAgility
+                    }
+                    cop.x = cop.x.coerceIn(50f, 350f)
 
                     // Collision checking (Virtual Player range box vs. Cop box)
                     if (cop.y > 440f && cop.y < 500f && abs(cop.x - playerX) < 42f) {
@@ -210,7 +243,8 @@ fun GameScreen(
 
                     // Collection checking
                     if (coin.y > 450f && coin.y < 510f && abs(coin.x - playerX) < 36f) {
-                        coinsCollected += if (coin.isBig) 5 else 1
+                        val valMult = if (selectedMap == 2) 2 else 1
+                        coinsCollected += (if (coin.isBig) 5 else 1) * valMult
                         coin.y = -200f
                         coin.x = Random.nextInt(60, 340).toFloat()
                     }
@@ -254,48 +288,82 @@ fun GameScreen(
             val trackW = size.width
             val trackH = size.height
 
-            // Render street shoulder boundaries
+            // Render street shoulder boundaries under different maps
+            val roadBgColor = when (selectedMap) {
+                0 -> Color(0xFF233245) // Snowy, icy dark slate asphalt
+                1 -> Color(0xFF131A26) // Classic midnight blue highway
+                else -> Color(0xFF02040A) // Absolute cyber dark court
+            }
+
             drawRect(
-                color = Color(0x33101B2E),
+                color = roadBgColor,
                 size = Size(trackW, trackH)
             )
 
-            // Dynamic highway driving dashed lines
+            // Dynamic highway driving dashed lines depending on route
             val dashH = 50f
             val spaceH = 40f
             val totalLineH = dashH + spaceH
             var lineY = -totalLineH + (roadOffset % totalLineH)
 
+            val boardersColor = when (selectedMap) {
+                0 -> Color(0xFF90A4AE) // Snowy frosted steel
+                1 -> Color(0xFFE2E8F0) // Safety white shoulder stripes
+                else -> Color(0xFFFF007F) // Luminescent hot pink grid bounds
+            }
+
+            val centersColor = when (selectedMap) {
+                0 -> Color(0xFFE0F7FA) // Winter cold icy white
+                1 -> Color(0xFFF59E0B) // Baikal double yellow lane markers
+                else -> Color(0xFF00F0FF) // Cyber cyan divider marker
+            }
+
             while (lineY < trackH) {
-                // Left Border dashed line
+                // Left Border lines
                 drawLine(
-                    color = Color(0xFF475569),
+                    color = boardersColor,
                     start = Offset(x = 40.dp.toPx(), y = lineY),
                     end = Offset(x = 40.dp.toPx(), y = lineY + dashH),
-                    strokeWidth = 3.dp.toPx()
+                    strokeWidth = 3.5.dp.toPx()
                 )
-                // Center dividing highway lines
+                // Center dividing highway markers
                 drawLine(
-                    color = Color.White.copy(alpha = 0.5f),
+                    color = centersColor,
                     start = Offset(x = trackW / 2, y = lineY),
                     end = Offset(x = trackW / 2, y = lineY + dashH),
-                    strokeWidth = 2.dp.toPx()
+                    strokeWidth = (if (selectedMap == 1) 4.dp else 2.dp).toPx()
                 )
-                // Right border line
+                // Right border lines
                 drawLine(
-                    color = Color(0xFF475569),
+                    color = boardersColor,
                     start = Offset(x = trackW - 40.dp.toPx(), y = lineY),
                     end = Offset(x = trackW - 40.dp.toPx(), y = lineY + dashH),
-                    strokeWidth = 3.dp.toPx()
+                    strokeWidth = 3.5.dp.toPx()
                 )
                 lineY += totalLineH
+            }
+
+            // Map 0: Snowy weather overlay (falling particles drifting deterministically)
+            if (selectedMap == 0) {
+                for (i in 0 until 24) {
+                    val snowSeedX = (i * 24329.81f) % 400f
+                    val snowSeedY = ((i * 74902.93f) + (roadOffset * 4.8f)) % 600f
+                    
+                    val sx = (snowSeedX / 400f) * trackW
+                    val sy = (snowSeedY / 600f) * trackH
+                    
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.75f),
+                        radius = (3f + (i % 4)).dp.toPx(),
+                        center = Offset(sx, sy)
+                    )
+                }
             }
 
             // Draw player spawned coins
             driftCoins.forEach { coin ->
                 val virtualRatioX = trackW / 400f
                 val scrX = coin.x * virtualRatioX
-                // Map y fraction
                 val scrY = (coin.y / 600f) * trackH
 
                 drawCircle(
@@ -317,28 +385,54 @@ fun GameScreen(
                 val cX = cop.x * virtualRatioX
                 val cY = (cop.y / 600f) * trackH
 
-                // Police sedan shape draw
+                // Sirens light sweep projection fields
+                drawLine(
+                    color = (if (cop.isFlasherRed) Color.Red else Color.Cyan).copy(alpha = 0.22f),
+                    start = Offset(cX - 12.dp.toPx(), cY - 5.dp.toPx()),
+                    end = Offset(cX - 100.dp.toPx(), cY - 45.dp.toPx()),
+                    strokeWidth = 26.dp.toPx()
+                )
+                drawLine(
+                    color = (if (cop.isFlasherRed) Color.Cyan else Color.Red).copy(alpha = 0.22f),
+                    start = Offset(cX + 12.dp.toPx(), cY - 5.dp.toPx()),
+                    end = Offset(cX + 100.dp.toPx(), cY - 45.dp.toPx()),
+                    strokeWidth = 26.dp.toPx()
+                )
+
+                // Detailed Wheels for police cruiser
+                drawRect(color = Color.Black, topLeft = Offset(cX - 23.dp.toPx(), cY - 25.dp.toPx()), size = Size(5.dp.toPx(), 12.dp.toPx()))
+                drawRect(color = Color.Black, topLeft = Offset(cX + 18.dp.toPx(), cY - 25.dp.toPx()), size = Size(5.dp.toPx(), 12.dp.toPx()))
+                drawRect(color = Color.Black, topLeft = Offset(cX - 23.dp.toPx(), cY + 15.dp.toPx()), size = Size(5.dp.toPx(), 12.dp.toPx()))
+                drawRect(color = Color.Black, topLeft = Offset(cX + 18.dp.toPx(), cY + 15.dp.toPx()), size = Size(5.dp.toPx(), 12.dp.toPx()))
+
+                // Police sedan chassis with custom push ram bar
                 drawRect(
-                    color = Color(0xFF1E293B),
+                    color = Color(0xFF0F172A),
                     topLeft = Offset(cX - 20.dp.toPx(), cY - 35.dp.toPx()),
                     size = Size(40.dp.toPx(), 70.dp.toPx())
                 )
+                // Metal bumper push guard
+                drawRect(
+                    color = Color(0xFFE2E8F0),
+                    topLeft = Offset(cX - 16.dp.toPx(), cY - 38.dp.toPx()),
+                    size = Size(32.dp.toPx(), 3.dp.toPx())
+                )
                 // Windshield window glass
                 drawRect(
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFF475569),
                     topLeft = Offset(cX - 15.dp.toPx(), cY - 12.dp.toPx()),
                     size = Size(30.dp.toPx(), 18.dp.toPx())
                 )
-                // White doors
+                // White doors decals
                 drawRect(
                     color = Color.White,
                     topLeft = Offset(cX - 20.dp.toPx(), cY - 20.dp.toPx()),
-                    size = Size(6.dp.toPx(), 45.dp.toPx())
+                    size = Size(4.dp.toPx(), 45.dp.toPx())
                 )
                 drawRect(
                     color = Color.White,
-                    topLeft = Offset(cX + 14.dp.toPx(), cY - 20.dp.toPx()),
-                    size = Size(6.dp.toPx(), 45.dp.toPx())
+                    topLeft = Offset(cX + 16.dp.toPx(), cY - 20.dp.toPx()),
+                    size = Size(4.dp.toPx(), 45.dp.toPx())
                 )
                 // Siren flasher bar
                 drawRect(
@@ -361,40 +455,94 @@ fun GameScreen(
             // 1. Underglow neon drawing
             if (neonColor != Color.Transparent) {
                 drawCircle(
-                    color = neonColor.copy(alpha = 0.5f),
-                    radius = 32.dp.toPx(),
-                    center = Offset(pX, pY + 10.dp.toPx())
+                    color = neonColor.copy(alpha = 0.6f),
+                    radius = 34.dp.toPx(),
+                    center = Offset(pX, pY + 12.dp.toPx())
                 )
             }
 
+            // Active Headlights active night path beams projection
+            drawLine(
+                color = Color(0x55FFFDF0),
+                start = Offset(pX - 15.dp.toPx(), pY - 38.dp.toPx()),
+                end = Offset(pX - 45.dp.toPx(), pY - 160.dp.toPx()),
+                strokeWidth = 20.dp.toPx()
+            )
+            drawLine(
+                color = Color(0x55FFFDF0),
+                start = Offset(pX + 15.dp.toPx(), pY - 38.dp.toPx()),
+                end = Offset(pX + 45.dp.toPx(), pY - 160.dp.toPx()),
+                strokeWidth = 20.dp.toPx()
+            )
+
+            // Active exhaust sparks/fire on Nitro booster
+            if (isNitroActive && nitroFuel > 0f) {
+                // Left exhaust flare
+                drawLine(
+                    color = Color(0xFFFF5500),
+                    start = Offset(pX - 12.dp.toPx(), pY + 40.dp.toPx()),
+                    end = Offset(pX - 22.dp.toPx(), pY + 65.dp.toPx()),
+                    strokeWidth = 6.dp.toPx()
+                )
+                drawCircle(
+                    color = Color(0xFFFFCC00),
+                    radius = 8.dp.toPx(),
+                    center = Offset(pX - 22.dp.toPx(), pY + 65.dp.toPx())
+                )
+                // Right exhaust flare
+                drawLine(
+                    color = Color(0xFFFF5500),
+                    start = Offset(pX + 12.dp.toPx(), pY + 40.dp.toPx()),
+                    end = Offset(pX + 22.dp.toPx(), pY + 65.dp.toPx()),
+                    strokeWidth = 6.dp.toPx()
+                )
+                drawCircle(
+                    color = Color(0xFFFFCC00),
+                    radius = 8.dp.toPx(),
+                    center = Offset(pX + 22.dp.toPx(), pY + 65.dp.toPx())
+                )
+            }
+
+            // 4 Rubber detailed wheels
+            drawRect(color = Color.Black, topLeft = Offset(pX - 25.dp.toPx(), pY - 28.dp.toPx()), size = Size(5.dp.toPx(), 13.dp.toPx()))
+            drawRect(color = Color.Black, topLeft = Offset(pX + 20.dp.toPx(), pY - 28.dp.toPx()), size = Size(5.dp.toPx(), 13.dp.toPx()))
+            drawRect(color = Color.Black, topLeft = Offset(pX - 25.dp.toPx(), pY + 18.dp.toPx()), size = Size(5.dp.toPx(), 13.dp.toPx()))
+            drawRect(color = Color.Black, topLeft = Offset(pX + 20.dp.toPx(), pY + 18.dp.toPx()), size = Size(5.dp.toPx(), 13.dp.toPx()))
+
             // 2. Main red/chrome Lada body
             drawRect(
-                color = Color(0xFF991B1B), // Siberian Metallic Red Lada
+                color = Color(0xFFC21807), // Detailed Siberian Crimson Ruby Red Metallic
                 topLeft = Offset(pX - 22.dp.toPx(), pY - 40.dp.toPx()),
                 size = Size(44.dp.toPx(), 80.dp.toPx())
             )
-            // Rear spoilers
+            // Carbon Fiber Hood Stripes
+            drawRect(
+                color = Color(0xFF1E293B),
+                topLeft = Offset(pX - 10.dp.toPx(), pY - 40.dp.toPx()),
+                size = Size(20.dp.toPx(), 22.dp.toPx())
+            )
+            // Rear sport wing spoiler
             drawRect(
                 color = Color.Black,
-                topLeft = Offset(pX - 24.dp.toPx(), pY + 32.dp.toPx()),
-                size = Size(48.dp.toPx(), 8.dp.toPx())
+                topLeft = Offset(pX - 25.dp.toPx(), pY + 34.dp.toPx()),
+                size = Size(50.dp.toPx(), 8.dp.toPx())
             )
-            // Headlights glowing (Active high beam)
-            drawCircle(
-                color = Color(0xFFFFFBEB),
-                radius = 5.dp.toPx(),
-                center = Offset(pX - 15.dp.toPx(), pY - 38.dp.toPx())
-            )
-            drawCircle(
-                color = Color(0xFFFFFBEB),
-                radius = 5.dp.toPx(),
-                center = Offset(pX + 15.dp.toPx(), pY - 38.dp.toPx())
-            )
-            // Cabin windshield screen
+            // Windshield and side windows cabin
             drawRect(
                 color = Color(0xFF0F172A),
                 topLeft = Offset(pX - 16.dp.toPx(), pY - 18.dp.toPx()),
                 size = Size(32.dp.toPx(), 28.dp.toPx())
+            )
+            // Active headlight circles
+            drawCircle(
+                color = Color.White,
+                radius = 5.dp.toPx(),
+                center = Offset(pX - 15.dp.toPx(), pY - 38.dp.toPx())
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 5.dp.toPx(),
+                center = Offset(pX + 15.dp.toPx(), pY - 38.dp.toPx())
             )
         }
 

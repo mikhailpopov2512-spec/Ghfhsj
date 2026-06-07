@@ -29,6 +29,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentScreen = MutableStateFlow<Screen>(Screen.MainMenu)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
+    private val _selectedMapIndex = MutableStateFlow(0)
+    val selectedMapIndex: StateFlow<Int> = _selectedMapIndex.asStateFlow()
+
+    fun selectMap(index: Int) {
+        _selectedMapIndex.value = index
+    }
+
     init {
         val database = GameDatabase.getInstance(application)
         repository = GameRepository(database.dao)
